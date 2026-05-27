@@ -1547,7 +1547,7 @@ _Depends on: Phase 2 (entries to add to lists)._
 
 _Depends on: Phase 0–5 complete (all API endpoints available). Can start Task 6.1 earlier (app shell doesn't need full API)._
 
-### Task 6.1: App Shell, Layout & Providers
+### Task 6.1: App Shell, Layout & Providers ✅
 
 **Goal**: Set up the Next.js 15 app with Tailwind CSS, TanStack Query provider, Zustand auth store, API client, and the two layout groups: `(auth)` for login/register (no navigation) and `(main)` for everything else (with bottom nav bar).
 
@@ -1707,7 +1707,7 @@ _Depends on: Phase 0–5 complete (all API endpoints available). Can start Task 
 - Bottom nav renders correctly on mobile viewport (375px width)
 - All UI primitives render without visual issues (check in browser)
 
-### Task 6.2: Auth Pages (Register & Login)
+### Task 6.2: Auth Pages (Register & Login) ✅
 
 **Goal**: Build register and login pages with form validation, error handling, and redirect to feed on success.
 
