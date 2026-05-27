@@ -12,6 +12,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import userRoutes from "./modules/users/users.routes";
 import mediaRoutes from "./modules/media/media.routes";
 import entriesRoutes from "./modules/entries/entries.routes";
+import socialRoutes from "./modules/social/social.routes";
 
 export async function buildApp() {
   const app = Fastify({
@@ -44,6 +45,7 @@ export async function buildApp() {
 
   await app.register(authRoutes, { prefix: "/auth" });
   await app.register(userRoutes, { prefix: "/users" });
+  await app.register(socialRoutes, { prefix: "/users" });
   await app.register(mediaRoutes, { prefix: "/media" });
   await app.register(entriesRoutes, { prefix: "/" });
 

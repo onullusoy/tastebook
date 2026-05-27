@@ -1050,7 +1050,7 @@ Put these in `apps/api/test/helpers/fixtures.ts`.
 
 _Depends on: Phase 1 complete (users must exist)._
 
-### Task 3.1: Social Module (Follow, Unfollow, Friends, Lists)
+### Task 3.1: Social Module (Follow, Unfollow, Friends, Lists) ✅
 
 **Goal**: Implement the social graph — follow/unfollow, friend detection (mutual follow), follower/following lists with pagination.
 

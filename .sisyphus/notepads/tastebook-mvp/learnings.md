@@ -54,3 +54,10 @@
 - Created all required Fastify endpoints supporting optional authentication and full Zod payload and query parameters validation.
 - Added 22 comprehensive integration tests in `entries.test.ts` covering entries CRUD flows, media ordering, limits, rating/validation checks, friends/private visibility scopes, and cursor-based paginated results.
 - Verified all 58 backend integration tests pass cleanly (100% success rate).
+
+## Social Module Implementation (Task 3.1)
+- Implemented `SocialService` in `apps/api/src/modules/social/social.service.ts` managing follow, unfollow, follower/following lists with cursor-based pagination, and mutual friend detection.
+- Enforced strict constraints on follows: self-following raises `ValidationError` (422), duplicate following raises `ConflictError` (409), and nonexistent targets raise `NotFoundError` (404).
+- Built high-performance Drizzle queries using `innerJoin` and `aliasedTable` for friends list query, and efficient mapping of paginated user responses with follower/following counters and friendship status flags.
+- Registered endpoints in Fastify app and tested all flows with 16 integration tests in `social.test.ts`, checking self-follow, cascading user deletes, unfollow counts, and cursor pagination.
+- Achieved 100% test success rate, with all 74 integration tests passing flawlessly.
