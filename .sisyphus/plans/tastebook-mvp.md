@@ -788,7 +788,7 @@ _Depends on: Phase 0 complete._
 - `pnpm typecheck` passes
 - Manual: `curl -X POST localhost:3001/auth/register -H "Content-Type: application/json" -d '{"username":"alice","email":"alice@test.com","password":"password123"}' → 201`
 
-### Task 1.2: User Module (Profile CRUD, Avatar Upload)
+### Task 1.2: User Module (Profile CRUD, Avatar Upload) ✅
 
 **Goal**: Users can view and update their profile, and upload an avatar image to MinIO.
 

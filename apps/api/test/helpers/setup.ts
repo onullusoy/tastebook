@@ -72,3 +72,22 @@ export async function createTestUser(
     cookie: res.cookies[0],
   };
 }
+
+export async function createTestUserWithAuth(
+  app: FastifyInstance,
+  overrides?: Partial<RegisterRequest>
+) {
+  const { user, accessToken, cookie } = await createTestUser(app, overrides);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (cookie) {
+    headers.Cookie = `${cookie.name}=${cookie.value}`;
+  }
+  return {
+    user,
+    accessToken,
+    cookie,
+    headers,
+  };
+}

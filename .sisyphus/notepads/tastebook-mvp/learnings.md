@@ -28,3 +28,12 @@
 - Created robust API contract/response interfaces in `packages/shared/src/api-types/index.ts`.
 - Integrated all exports with a clean, unified barrel setup via `packages/shared/src/index.ts`.
 - Resolved TypeScript `rootDir` TS6059 constraints on workspace paths import checks by verifying under the correct TS boundaries or temporarily disabling `rootDir` during build verification. Both `apps/api` and `apps/web` resolve shared schemas and API types flawlessly.
+
+## User Module and MinIO Setup (Task 1.2)
+- Created S3 client plugin in `apps/api/src/shared/plugins/s3.ts` with public-read policy creation for MinIO.
+- Implemented `UsersService` with magic byte validation (JPEG, PNG, WebP) and old avatar cleanup.
+- Created `optionalAuthGuard` middleware to support optional authentication headers.
+- Registered and implemented user profile, avatar upload routes under `/users`.
+- Added `createTestUserWithAuth` to test helpers to provide unique users and token headers.
+- Fixed Vitest parallel execution database collision by setting `fileParallelism: false` and `maxWorkers: 1` in `vitest.config.ts`.
+

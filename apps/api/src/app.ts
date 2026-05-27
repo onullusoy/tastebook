@@ -6,8 +6,10 @@ import multipart from "@fastify/multipart";
 import configPlugin from "./shared/plugins/config";
 import dbPlugin from "./shared/plugins/db";
 import redisPlugin from "./shared/plugins/redis";
+import s3Plugin from "./shared/plugins/s3";
 import { errorHandler } from "./shared/middleware/error-handler";
 import authRoutes from "./modules/auth/auth.routes";
+import userRoutes from "./modules/users/users.routes";
 
 export async function buildApp() {
   const app = Fastify({
@@ -34,10 +36,12 @@ export async function buildApp() {
 
   await app.register(dbPlugin);
   await app.register(redisPlugin);
+  await app.register(s3Plugin);
 
   app.setErrorHandler(errorHandler);
 
   await app.register(authRoutes, { prefix: "/auth" });
+  await app.register(userRoutes, { prefix: "/users" });
 
   return app;
 }
