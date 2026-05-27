@@ -17,3 +17,8 @@
 - Resolved route group page conflicts by migrating the generic `(auth)/page.tsx` into a proper `/login` sub-route layout.
 - Structured Next.js 15 page props to correctly handle dynamic `params` as asynchronous `Promise` objects.
 
+## Drizzle ORM Schema & Migrations
+- Defined the complete 7 database schema files under `packages/db/src/schema/` (users, taste-entries, entry-media, follows, lists, list-items, refresh-tokens).
+- Implemented `createDb` factory inside `packages/db/src/index.ts`.
+- Encountered Drizzle-kit limitations with composite descending index order compilation (e.g. `desc(table.createdAt)` compiles as escaped quotes and column `.desc()` is unsupported in older Drizzle schemas). Fixed by defining the schema with standard ascending indexes and then modifying the generated migration SQL to apply precise `DESC` order and conditional filters (`WHERE entry_id IS NULL` for orphaned media).
+- Successfully ran and verified migrations inside Postgres docker container using `docker compose exec postgres psql`.

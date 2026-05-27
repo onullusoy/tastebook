@@ -370,7 +370,7 @@ volumes:
 - `pnpm typecheck` → exits 0 (only placeholder files, should compile clean)
 - Each package can import from its workspace dependencies (test with a simple import)
 
-### Task 0.3: Database Schema & Migrations
+### Task 0.3: Database Schema & Migrations ✅
 
 **Goal**: Define the complete Drizzle ORM schema in `packages/db` and generate the initial migration. This is the single source of truth for all database tables.
 

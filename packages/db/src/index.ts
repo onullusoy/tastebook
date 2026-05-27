@@ -1,2 +1,8 @@
-// Placeholder - will be replaced in subsequent tasks
-export const dbPlaceholder = {};
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "./schema";
+
+export function createDb(url: string) {
+  const client = postgres(url);
+  return drizzle(client, { schema });
+}
