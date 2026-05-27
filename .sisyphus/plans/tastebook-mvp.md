@@ -659,7 +659,7 @@ pnpm drizzle-kit migrate   # applies to running Postgres
 
 _Depends on: Phase 0 complete._
 
-### Task 1.1: Auth Module (Register, Login, Refresh, Middleware)
+### Task 1.1: Auth Module (Register, Login, Refresh, Middleware) ✅
 
 **Goal**: Implement JWT-based authentication with access/refresh token flow. This is the security foundation — every subsequent module depends on the auth middleware.
 

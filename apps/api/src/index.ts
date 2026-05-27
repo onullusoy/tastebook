@@ -1,1 +1,2 @@
-export const apiPlaceholder = {};
+export { buildApp } from "./app";
+
