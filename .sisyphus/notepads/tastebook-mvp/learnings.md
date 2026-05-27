@@ -37,3 +37,10 @@
 - Added `createTestUserWithAuth` to test helpers to provide unique users and token headers.
 - Fixed Vitest parallel execution database collision by setting `fileParallelism: false` and `maxWorkers: 1` in `vitest.config.ts`.
 
+## Media Upload Service (Task 2.1)
+- Implemented `MediaService` under `apps/api/src/modules/media/media.service.ts` to manage image uploads to MinIO, validation, database entry, and attachment helper logic.
+- Implemented multi-criteria magic byte validation supporting JPEG (`FFD8FF`), PNG (`89504E47`), and WebP (`RIFF`/`WEBP`) buffers and verified alignment with client-supplied content-type headers.
+- Registered new `/media/upload` route in Fastify routes under `/media` prefix.
+- Handled Fastify's multipart size validation constraints by catching `FST_REQ_FILE_TOO_LARGE` / `FST_ERR_MULTIPART_REACHED_LIMIT` errors in the global `errorHandler` middleware and mapping them to a standard validation 422 HTTP status.
+- Added comprehensive integration tests in `media.test.ts` matching 9 test cases covering valid MIME formats (JPEG, PNG, WebP), invalid content-type / magic byte mismatches, size limits, unauthorized upload attempts, database entry validation, and S3 asset accessibility.
+- All 36 backend integration tests pass seamlessly.

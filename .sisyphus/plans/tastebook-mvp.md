@@ -857,7 +857,7 @@ _Depends on: Phase 0 complete._
 
 _Depends on: Phase 1 complete (auth middleware needed for all routes)._
 
-### Task 2.1: Media Upload Service (MinIO Integration)
+### Task 2.1: Media Upload Service (MinIO Integration) ✅
 
 **Goal**: A standalone media upload endpoint that accepts images, validates them, stores them in MinIO, and returns a `mediaId`. This is a decoupled service — media is uploaded independently, then attached to entries during creation.
 

@@ -29,6 +29,16 @@ export function errorHandler(
     });
   }
 
+  if (error.code === "FST_ERR_MULTIPART_REACHED_LIMIT" || error.code === "FST_REQ_FILE_TOO_LARGE") {
+    log.warn({ err: error }, "File size limit exceeded");
+    return reply.status(422).send({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "File size exceeds 10MB limit.",
+      },
+    });
+  }
+
   if (error.validation) {
     log.warn({ err: error }, "Fastify Validation Error");
     return reply.status(422).send({
