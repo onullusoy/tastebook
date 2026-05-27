@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@tastebook/db": ["../../packages/db/src/index.ts"],
+      "@tastebook/shared": ["../../packages/shared/src/index.ts"],
+      "@tastebook/shared/schemas": ["../../packages/shared/src/schemas/index.ts"],
+      "@tastebook/shared/api-types": ["../../packages/shared/src/api-types/index.ts"],
+      "@tastebook/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": ["src/**/*", "test/**/*"]
+}

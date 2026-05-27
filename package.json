@@ -1,0 +1,19 @@
+{
+  "name": "tastebook-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "db:generate": "pnpm --filter @tastebook/db generate",
+    "db:migrate": "pnpm --filter @tastebook/db migrate",
+    "db:push": "pnpm --filter @tastebook/db push"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}
