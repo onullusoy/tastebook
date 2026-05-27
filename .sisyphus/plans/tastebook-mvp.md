@@ -934,7 +934,7 @@ Put these in `apps/api/test/helpers/fixtures.ts`.
 - All 9 tests pass
 - Manual: upload an actual photo from disk → verify it's accessible at the returned URL in a browser
 
-### Task 2.2: Taste Entry Module (CRUD with Visibility & Media)
+### Task 2.2: Taste Entry Module (CRUD with Visibility & Media) ✅
 
 **Goal**: Full CRUD for Taste Entries with visibility enforcement, media attachment, and proper ownership checks.
 

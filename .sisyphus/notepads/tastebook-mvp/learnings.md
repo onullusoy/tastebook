@@ -44,3 +44,13 @@
 - Handled Fastify's multipart size validation constraints by catching `FST_REQ_FILE_TOO_LARGE` / `FST_ERR_MULTIPART_REACHED_LIMIT` errors in the global `errorHandler` middleware and mapping them to a standard validation 422 HTTP status.
 - Added comprehensive integration tests in `media.test.ts` matching 9 test cases covering valid MIME formats (JPEG, PNG, WebP), invalid content-type / magic byte mismatches, size limits, unauthorized upload attempts, database entry validation, and S3 asset accessibility.
 - All 36 backend integration tests pass seamlessly.
+
+## Taste Entry Module (Task 2.2)
+- Created cursor encoding and decoding utility under `apps/api/src/shared/utils/cursor.ts` leveraging `base64url` format to pack `createdAt` timestamp and `id` for reliable cursor-based pagination.
+- Designed `EntriesService` matching a robust architecture with fully enforced ownership validation on all mutate actions (`update` and `delete`) and strict visibility checks on read actions (`getById` and `listByUser`).
+- Implemented inline social check logic supporting mutual followers check directly against the `follows` table to establish if a viewer is a "friend" of the entry owner.
+- Restricted visibility leaks of Private and Friends-Only entries by returning standard `NotFoundError` (404) to unauthorized requestors to prevent id harvesting (rather than leaking existence through a 403 Forbidden).
+- Bound cascading deletes on entries to automatically trigger deletion of associated S3 media assets from MinIO and clean up media rows.
+- Created all required Fastify endpoints supporting optional authentication and full Zod payload and query parameters validation.
+- Added 22 comprehensive integration tests in `entries.test.ts` covering entries CRUD flows, media ordering, limits, rating/validation checks, friends/private visibility scopes, and cursor-based paginated results.
+- Verified all 58 backend integration tests pass cleanly (100% success rate).
