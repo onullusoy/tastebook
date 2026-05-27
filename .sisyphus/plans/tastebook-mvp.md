@@ -512,7 +512,7 @@ pnpm drizzle-kit migrate   # applies to running Postgres
 - Connect to Postgres and verify: `\dt` shows all 7 tables, `\di` shows all indexes
 - `pnpm typecheck` passes — all schema types resolve
 
-### Task 0.4: Shared Types & Zod Schemas Package
+### Task 0.4: Shared Types & Zod Schemas Package ✅
 
 **Goal**: Define API contract types and shared Zod validation schemas in `packages/shared`. Both `apps/api` (request validation) and `apps/web` (form validation) consume these.
 

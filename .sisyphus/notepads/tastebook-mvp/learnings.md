@@ -22,3 +22,9 @@
 - Implemented `createDb` factory inside `packages/db/src/index.ts`.
 - Encountered Drizzle-kit limitations with composite descending index order compilation (e.g. `desc(table.createdAt)` compiles as escaped quotes and column `.desc()` is unsupported in older Drizzle schemas). Fixed by defining the schema with standard ascending indexes and then modifying the generated migration SQL to apply precise `DESC` order and conditional filters (`WHERE entry_id IS NULL` for orphaned media).
 - Successfully ran and verified migrations inside Postgres docker container using `docker compose exec postgres psql`.
+
+## Shared Schema and API Types (Task 0.4)
+- Created shared Zod validation schemas (`auth.ts`, `entries.ts`, `users.ts`, `lists.ts`, `common.ts`) under `packages/shared/src/schemas/`.
+- Created robust API contract/response interfaces in `packages/shared/src/api-types/index.ts`.
+- Integrated all exports with a clean, unified barrel setup via `packages/shared/src/index.ts`.
+- Resolved TypeScript `rootDir` TS6059 constraints on workspace paths import checks by verifying under the correct TS boundaries or temporarily disabling `rootDir` during build verification. Both `apps/api` and `apps/web` resolve shared schemas and API types flawlessly.
