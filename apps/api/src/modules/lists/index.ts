@@ -1,1 +1,1 @@
-export const listsPlaceholder = {};
+export * from "./lists.service";

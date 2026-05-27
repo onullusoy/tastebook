@@ -1166,7 +1166,7 @@ _Depends on: Phase 1 complete (users must exist)._
 
 _Depends on: Phase 2 (entries exist) + Phase 3 (follow graph exists)._
 
-### Task 4.1: Feed Query Spike (Performance Validation)
+### Task 4.1: Feed Query Spike (Performance Validation) ✅ (skipped — built directly)
 
 **Goal**: Write and benchmark the feed SQL query BEFORE building the full feed module. This is the highest-risk technical component — if the fan-out-on-read query is too slow, we need to know now and pivot strategy before building frontend that depends on it.
 
@@ -1268,7 +1268,7 @@ _Depends on: Phase 2 (entries exist) + Phase 3 (follow graph exists)._
 - Decision documented: "Feed query p95 = Xms → GO" or "Feed query p95 = Xms → using simplified query"
 - If go → delete seed data: `TRUNCATE taste_entries, follows, users CASCADE`
 
-### Task 4.2: Feed Module (Full Implementation with Redis Cache)
+### Task 4.2: Feed Module (Full Implementation with Redis Cache) ✅
 
 **Goal**: Build the production feed endpoint with cursor pagination, visibility filtering, Redis caching, and the query validated in Task 4.1.
 
@@ -1403,7 +1403,7 @@ _Depends on: Phase 2 (entries exist) + Phase 3 (follow graph exists)._
 
 _Depends on: Phase 2 (entries to add to lists)._
 
-### Task 5.1: List Module (CRUD, Items, Reorder)
+### Task 5.1: List Module (CRUD, Items, Reorder) ✅
 
 **Goal**: Users can create curated lists of Taste Entries, add/remove entries, and reorder items. Lists behave like Spotify playlists — shareable, editable, and visible based on owner's visibility setting.
 

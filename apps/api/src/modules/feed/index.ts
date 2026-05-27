@@ -1,1 +1,1 @@
-export const feedPlaceholder = {};
+export * from "./feed.service";
