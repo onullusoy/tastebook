@@ -99,14 +99,6 @@ export default function MainLayout({
               <span>📙</span>
               <span>Tastebook</span>
             </span>
-            {user && (
-              <button
-                onClick={() => logout()}
-                className="text-xs text-red-600 font-bold border border-red-200 rounded-lg px-2.5 py-1 hover:bg-red-50"
-              >
-                Sign Out
-              </button>
-            )}
           </header>
 
           <main className="flex-1 p-4 pb-24 md:p-8 max-w-4xl w-full mx-auto">
@@ -115,6 +107,7 @@ export default function MainLayout({
 
           {/* Mobile FAB */}
           {pathname !== "/entries/new" &&
+            pathname !== "/search" &&
             !pathname.startsWith("/restaurants/") &&
             !pathname.startsWith("/city/") &&
             !pathname.startsWith("/lists") && (

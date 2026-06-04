@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { useCreateEntry } from "../../../../hooks/use-entries";
-import { useToastStore } from "../../../../stores/toast-store";
-import { ImageUploadGrid } from "../../../../components/entry/ImageUploadGrid";
-import { RatingInput } from "../../../../components/entry/RatingInput";
-import { LocationAutocomplete } from "../../../../components/entry/LocationAutocomplete";
-import { Input } from "../../../../components/ui/Input";
-import { Textarea } from "../../../../components/ui/Textarea";
-import { Button } from "../../../../components/ui/Button";
+import { useEntry, useUpdateEntry } from "../../../../../hooks/use-entries";
+import { useAuthStore } from "../../../../../stores/auth-store";
+import { useToastStore } from "../../../../../stores/toast-store";
+import { RatingInput } from "../../../../../components/entry/RatingInput";
+import { LocationAutocomplete } from "../../../../../components/entry/LocationAutocomplete";
+import { Input } from "../../../../../components/ui/Input";
+import { Textarea } from "../../../../../components/ui/Textarea";
+import { Button } from "../../../../../components/ui/Button";
+import { Spinner } from "../../../../../components/ui/Spinner";
 
 const ATMOSPHERE_OPTIONS = [
   "romantic", "local", "luxury", "student-friendly", "family-friendly",
@@ -28,7 +29,6 @@ interface EntryFormValues {
   city: string;
   country: string;
   google_place_id?: string | null;
-  session_token?: string | null;
   formatted_address?: string | null;
   food_items: FoodItemValue[];
   atmosphere_tags: string[];
@@ -40,12 +40,16 @@ interface EntryFormValues {
   rating_value?: number;
   notes: string;
   visibility: "public" | "friends" | "private";
-  media_ids: string[];
 }
 
-export default function NewEntryPage() {
+export default function EditEntryPage() {
+  const params = useParams();
   const router = useRouter();
-  const createEntry = useCreateEntry();
+  const id = params?.id as string;
+
+  const { data: entry, isLoading: entryLoading, error } = useEntry(id);
+  const updateEntry = useUpdateEntry(id);
+  const { user, isLoading: authLoading } = useAuthStore();
   const { addToast } = useToastStore();
   const [showSubRatings, setShowSubRatings] = useState(false);
 
@@ -55,6 +59,7 @@ export default function NewEntryPage() {
     control,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<EntryFormValues>({
     defaultValues: {
@@ -62,7 +67,6 @@ export default function NewEntryPage() {
       city: "",
       country: "",
       google_place_id: null,
-      session_token: null,
       formatted_address: null,
       food_items: [{ name: "", notes: "" }],
       atmosphere_tags: [],
@@ -70,26 +74,34 @@ export default function NewEntryPage() {
       rating: 7,
       notes: "",
       visibility: "public",
-      media_ids: [],
     },
   });
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const placeId = params.get("google_place_id");
-      const name = params.get("name");
-      const city = params.get("city");
-      const country = params.get("country");
-      const address = params.get("address");
+  useEffect(() => {
+    if (entry) {
+      reset({
+        restaurant_name: entry.restaurant_name,
+        city: entry.city,
+        country: entry.country,
+        google_place_id: entry.google_place_id || null,
+        formatted_address: entry.formatted_address || null,
+        food_items: entry.food_items.map((fi) => ({ name: fi.name, notes: fi.notes || "" })),
+        atmosphere_tags: entry.atmosphere_tags || [],
+        price_level: entry.price_level,
+        rating: entry.rating,
+        rating_ambience: entry.rating_ambience || undefined,
+        rating_taste: entry.rating_taste || undefined,
+        rating_service: entry.rating_service || undefined,
+        rating_value: entry.rating_value || undefined,
+        notes: entry.notes || "",
+        visibility: entry.visibility,
+      });
 
-      if (placeId) setValue("google_place_id", placeId);
-      if (name) setValue("restaurant_name", name, { shouldValidate: true });
-      if (city) setValue("city", city, { shouldValidate: true });
-      if (country) setValue("country", country, { shouldValidate: true });
-      if (address) setValue("formatted_address", address);
+      if (entry.rating_ambience || entry.rating_taste || entry.rating_service || entry.rating_value) {
+        setShowSubRatings(true);
+      }
     }
-  }, [setValue]);
+  }, [entry, reset]);
 
   const watchCity = watch("city");
   const watchCountry = watch("country");
@@ -102,20 +114,19 @@ export default function NewEntryPage() {
   const onSubmit = async (data: EntryFormValues) => {
     try {
       const validFoodItems = data.food_items
-        .filter(fi => fi.name.trim().length > 0)
-        .map(fi => ({ name: fi.name.trim(), notes: fi.notes?.trim() || undefined }));
+        .filter((fi) => fi.name.trim().length > 0)
+        .map((fi) => ({ name: fi.name.trim(), notes: fi.notes?.trim() || undefined }));
 
       if (validFoodItems.length === 0) {
         addToast("At least one food item is required", "error");
         return;
       }
 
-      await createEntry.mutateAsync({
+      await updateEntry.mutateAsync({
         restaurant_name: data.restaurant_name,
         city: data.city,
         country: data.country,
         google_place_id: data.google_place_id || undefined,
-        session_token: data.session_token || undefined,
         formatted_address: data.formatted_address || undefined,
         food_items: validFoodItems,
         atmosphere_tags: data.atmosphere_tags as any,
@@ -127,21 +138,54 @@ export default function NewEntryPage() {
         rating_value: data.rating_value ? Number(data.rating_value) : undefined,
         notes: data.notes || undefined,
         visibility: data.visibility,
-        media_ids: data.media_ids,
       });
 
-      addToast("Review posted successfully!", "success");
-      router.push("/feed");
+      addToast("Review updated successfully!", "success");
+      router.push(`/entries/${id}`);
     } catch (err: any) {
-      addToast(err.message || "Failed to create entry", "error");
+      addToast(err.message || "Failed to update entry", "error");
     }
   };
+
+  const isOwner = user && entry && user.id === entry.user.id;
+
+  if (entryLoading || authLoading) {
+    return (
+      <div className="flex justify-center p-12">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className="max-w-md mx-auto py-12 text-center flex flex-col items-center gap-4">
+        <h2 className="text-xl font-bold text-stone-800">Entry not found</h2>
+        <p className="text-sm text-stone-500">The entry you are looking for does not exist or you don't have permission to view it.</p>
+        <Button variant="secondary" onClick={() => router.push("/feed")}>
+          Back to Feed
+        </Button>
+      </div>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="max-w-md mx-auto py-12 text-center flex flex-col items-center gap-4">
+        <h2 className="text-xl font-bold text-stone-800">Access Denied</h2>
+        <p className="text-sm text-stone-500">You don't have permission to edit this review.</p>
+        <Button variant="secondary" onClick={() => router.push("/feed")}>
+          Back to Feed
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6 bg-white p-6 md:p-8 rounded-2xl border border-warm-200 shadow-sm">
       <div>
-        <h1 className="text-2xl font-black text-stone-900 tracking-tight">Post a Review</h1>
-        <p className="text-sm text-stone-500 mt-1">Share your dining experience with your network.</p>
+        <h1 className="text-2xl font-black text-stone-900 tracking-tight">Edit Review</h1>
+        <p className="text-sm text-stone-500 mt-1">Update your dining experience details.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
@@ -163,7 +207,6 @@ export default function NewEntryPage() {
                 onChangeCity={(val) => setValue("city", val, { shouldValidate: true })}
                 onChangeCountry={(val) => setValue("country", val, { shouldValidate: true })}
                 onChangeGooglePlaceId={(val) => setValue("google_place_id", val)}
-                onChangeSessionToken={(val) => setValue("session_token", val)}
                 onChangeFormattedAddress={(val) => setValue("formatted_address", val)}
                 biasCity={watchCity}
                 biasCountry={watchCountry}
@@ -363,14 +406,21 @@ export default function NewEntryPage() {
           )}
         </div>
 
-        {/* Media Upload */}
-        <Controller
-          name="media_ids"
-          control={control}
-          render={({ field }) => (
-            <ImageUploadGrid value={field.value} onChange={field.onChange} />
-          )}
-        />
+        {/* Media Preview (Read-only) */}
+        {entry.media && entry.media.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-stone-700">Uploaded Media</label>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {entry.media.map((item) => (
+                <div key={item.id} className="relative h-20 w-28 flex-shrink-0 rounded-xl overflow-hidden border border-warm-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.thumbnail_url} alt="Uploaded media" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-stone-400">Photos cannot be edited for an existing review.</p>
+          </div>
+        )}
 
         {/* Notes */}
         <Textarea
@@ -421,9 +471,9 @@ export default function NewEntryPage() {
             type="submit"
             variant="primary"
             className="flex-1 cursor-pointer"
-            isLoading={createEntry.isPending}
+            isLoading={updateEntry.isPending}
           >
-            Post Review
+            Save Changes
           </Button>
         </div>
       </form>

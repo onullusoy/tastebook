@@ -2,13 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUserLists } from "../../../hooks/use-lists";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Spinner } from "../../../components/ui/Spinner";
 import { EmptyState } from "../../../components/ui/EmptyState";
-import { Button } from "../../../components/ui/Button";
+import { Plus } from "lucide-react";
 
 export default function ListsPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const { data: lists, isLoading } = useUserLists(user?.id);
 
@@ -22,16 +24,20 @@ export default function ListsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-stone-900 tracking-tight">Your Lists</h1>
           <p className="text-sm text-stone-500 mt-1">Curate, bookmark, and organize entries.</p>
         </div>
-        <Link href="/lists/new" className="w-full sm:w-auto">
-          <Button variant="primary" className="w-full sm:w-auto cursor-pointer justify-center">
-            ＋ New List
-          </Button>
-        </Link>
+        {lists && lists.length > 0 && (
+          <Link
+            href="/lists/new"
+            className="flex items-center justify-center h-10 w-10 bg-white border border-warm-200 hover:border-primary-400 hover:text-primary-500 text-stone-700 rounded-full shadow-sm transition-all cursor-pointer"
+            title="Create New List"
+          >
+            <Plus size={20} />
+          </Link>
+        )}
       </div>
 
       {!lists || lists.length === 0 ? (
@@ -39,6 +45,8 @@ export default function ListsPage() {
           <EmptyState
             title="No lists yet"
             description="Create your first list to start bookmarking entries!"
+            actionLabel="＋ Create List"
+            onAction={() => router.push("/lists/new")}
           />
         </div>
       ) : (

@@ -3,23 +3,29 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { EntryResponse } from "@tastebook/shared/api-types";
 import { Avatar } from "../ui/Avatar";
-import { AddToListButton } from "../entry/AddToListButton";
 import { timeAgo } from "../../lib/date-utils";
-import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteComment } from "../../hooks/use-entries";
+import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteComment, useDeleteEntry } from "../../hooks/use-entries";
 import { useAuthStore } from "../../stores/auth-store";
+import { useUserLists, useAddToList } from "../../hooks/use-lists";
+import { useToastStore } from "../../stores/toast-store";
+import { EllipsisVertical } from "lucide-react";
 
 interface EntryCardProps {
   entry: EntryResponse;
   onDelete?: () => void;
+  onRemove?: () => void;
   isOwner?: boolean;
   onImageClick?: (url: string) => void;
 }
 
-export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardProps) => {
+export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick }: EntryCardProps) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showListsSubmenu, setShowListsSubmenu] = useState(false);
 
   const { data: counters } = useEntryCounters(entry.id, {
     likes_count: entry.likes_count,
@@ -28,6 +34,13 @@ export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardP
   });
 
   const { user } = useAuthStore();
+  const router = useRouter();
+  const resolvedIsOwner = isOwner || (user && user.id === entry.user.id);
+  const deleteEntryMutation = useDeleteEntry();
+  const { data: lists, isLoading: isLoadingLists } = useUserLists();
+  const addToListMutation = useAddToList();
+  const { addToast } = useToastStore();
+
   const toggleLikeMutation = useToggleLike(entry.id);
   const [showComments, setShowComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
@@ -100,27 +113,176 @@ export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardP
             </span>
           </div>
         </Link>
-        <div className="flex items-center gap-2">
-          <AddToListButton entryId={entry.id} />
-          {isOwner && onDelete && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (confirm("Are you sure you want to delete this entry?")) {
-                  onDelete();
-                }
-              }}
-              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-warm-200"
-              title="Delete entry"
-            >
-              🗑️
-            </button>
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
+              setShowListsSubmenu(false);
+            }}
+            className="p-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+            aria-label="Options"
+          >
+            <EllipsisVertical size={20} />
+          </button>
+
+          {menuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  setShowListsSubmenu(false);
+                }}
+              />
+              <div className="absolute right-0 mt-2 w-52 bg-white border border-warm-200 rounded-xl shadow-xl z-40 py-1.5 animate-fade-in text-left">
+                {!showListsSubmenu ? (
+                  <div className="flex flex-col">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowListsSubmenu(true);
+                      }}
+                      className="w-full px-4 py-2 text-sm text-stone-700 hover:bg-primary-50 hover:text-primary-600 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                    >
+                      <span>🔖</span> Add to List
+                    </button>
+
+                    {onRemove && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          if (confirm("Are you sure you want to remove this entry from this list?")) {
+                            onRemove();
+                          }
+                        }}
+                        className="w-full px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                      >
+                        <span>❌</span> Remove from List
+                      </button>
+                    )}
+
+                    {resolvedIsOwner && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          router.push(`/entries/${entry.id}/edit`);
+                        }}
+                        className="w-full px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                      >
+                        <span>✏️</span> Edit Post
+                      </button>
+                    )}
+
+                    {resolvedIsOwner && (
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          if (confirm("Are you sure you want to delete this entry?")) {
+                            if (onDelete) {
+                              onDelete();
+                            } else {
+                              try {
+                                await deleteEntryMutation.mutateAsync(entry.id);
+                                addToast("Entry deleted successfully", "success");
+                              } catch (err) {
+                                addToast("Failed to delete entry", "error");
+                              }
+                            }
+                          }
+                        }}
+                        className="w-full px-4 py-2 text-sm text-red-650 hover:bg-red-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                      >
+                        <span>🗑️</span> Delete Post
+                      </button>
+                    )}
+
+                    {!resolvedIsOwner && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuOpen(false);
+                          addToast("Post reported. Thank you for your feedback.", "success");
+                        }}
+                        className="w-full px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                      >
+                        <span>⚠️</span> Report Post
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 px-3 py-1 border-b border-warm-100">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowListsSubmenu(false);
+                        }}
+                        className="text-stone-400 hover:text-stone-600 text-xs font-bold"
+                      >
+                        ← Back
+                      </button>
+                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+                        Select List
+                      </span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto py-1">
+                      {isLoadingLists ? (
+                        <div className="px-4 py-2 text-xs text-stone-500">
+                          Loading lists...
+                        </div>
+                      ) : !lists || lists.length === 0 ? (
+                        <div className="px-4 py-2 text-xs text-stone-500">
+                          No lists found. Create one in the Lists tab!
+                        </div>
+                      ) : (
+                        lists.map((list) => (
+                          <button
+                            key={list.id}
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                await addToListMutation.mutateAsync({
+                                  listId: list.id,
+                                  entryId: entry.id,
+                                });
+                                addToast(`Added to list "${list.title}"!`, "success");
+                                setMenuOpen(false);
+                                setShowListsSubmenu(false);
+                              } catch (err: any) {
+                                addToast(err.message || "Failed to add to list", "error");
+                              }
+                            }}
+                            className="w-full px-4 py-2 text-xs text-stone-700 hover:bg-primary-50 hover:text-primary-600 transition-colors text-left flex items-center justify-between cursor-pointer font-semibold"
+                          >
+                            <span className="truncate">{list.title}</span>
+                            <span className="text-stone-450 text-[10px]">({list.item_count})</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {entry.media && entry.media.length > 0 ? (
+      {entry.media && entry.media.length > 0 && (
         <div className="relative aspect-video w-full bg-stone-100 flex items-center justify-center overflow-hidden">
           {onImageClick ? (
             <button
@@ -182,15 +344,6 @@ export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardP
               </div>
             </>
           )}
-        </div>
-      ) : (
-        <div className="aspect-video w-full bg-stone-100 flex items-center justify-center border-y border-warm-100">
-          <Link
-            href={`/entries/${entry.id}`}
-            className="text-stone-400 text-4xl"
-          >
-            🍲
-          </Link>
         </div>
       )}
 
@@ -333,7 +486,7 @@ export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardP
                           <span className="text-[10px] text-stone-400">
                             {timeAgo(comment.created_at)}
                           </span>
-                          {(isOwner || (user && user.id === comment.user.id)) && (
+                          {(resolvedIsOwner || (user && user.id === comment.user.id)) && (
                             <button
                               onClick={() => {
                                 if (window.confirm("Are you sure you want to delete this comment?")) {

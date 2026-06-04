@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api-client";
 import { ApiResponse, EntryResponse, MediaResponse } from "@tastebook/shared/api-types";
-import { CreateEntryRequest } from "@tastebook/shared/schemas/entries";
+import { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/schemas/entries";
 
 export function useEntry(id: string) {
   return useQuery<EntryResponse>({
@@ -27,6 +27,25 @@ export function useCreateEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["user-entries"] });
+    },
+  });
+}
+
+export function useUpdateEntry(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: UpdateEntryRequest) => {
+      const res = await api.fetch<ApiResponse<EntryResponse>>(`/entries/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["entry", id] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
   });

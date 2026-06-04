@@ -11,12 +11,13 @@ import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Textarea } from "../../../../components/ui/Textarea";
 import { FollowsModal } from "../../../../components/profile/FollowsModal";
+import { LogOut } from "lucide-react";
 
 export default function ProfilePage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, logout } = useAuthStore();
   const { data: user, isLoading: isUserLoading } = useUser(id);
   const { data: entriesData, isLoading: isEntriesLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useUserEntries(id, 10);
   const follow = useFollow();
@@ -113,7 +114,17 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="bg-white border border-warm-200 rounded-2xl p-6 md:p-8 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+      <div className="relative bg-white border border-warm-200 rounded-2xl p-6 md:p-8 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+        {isOwnProfile && (
+          <button
+            onClick={() => logout()}
+            className="absolute top-4 right-4 text-stone-400 hover:text-red-600 p-2 hover:bg-stone-50 rounded-full transition-colors cursor-pointer"
+            title="Sign Out"
+            aria-label="Sign Out"
+          >
+            <LogOut size={20} />
+          </button>
+        )}
         <div className="relative group cursor-pointer flex-shrink-0" onClick={handleAvatarClick}>
           <Avatar
             src={user.avatar_url}

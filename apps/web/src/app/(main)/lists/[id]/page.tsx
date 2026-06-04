@@ -98,8 +98,8 @@ export default function ListDetailsPage() {
               <EntryCard
                 key={entry.id}
                 entry={entry}
-                isOwner={isOwner}
-                onDelete={() => handleRemoveItem(entry.id)}
+                isOwner={user?.id === entry.user.id}
+                onRemove={isOwner ? () => handleRemoveItem(entry.id) : undefined}
               />
             ))}
           </div>
