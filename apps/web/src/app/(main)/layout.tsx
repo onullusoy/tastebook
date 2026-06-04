@@ -114,7 +114,10 @@ export default function MainLayout({
           </main>
 
           {/* Mobile FAB */}
-          {pathname !== "/entries/new" && !pathname.startsWith("/restaurants/") && !pathname.startsWith("/city/") && (
+          {pathname !== "/entries/new" &&
+            !pathname.startsWith("/restaurants/") &&
+            !pathname.startsWith("/city/") &&
+            !pathname.startsWith("/lists") && (
             <Link
               href="/entries/new"
               className="md:hidden fixed bottom-20 right-4 z-20 bg-primary-500 hover:bg-primary-600 active:scale-95 text-white shadow-lg h-14 w-14 rounded-full flex items-center justify-center transition-all duration-200"

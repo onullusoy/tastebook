@@ -9,17 +9,31 @@ import { eq } from "drizzle-orm";
 export default async function authRoutes(fastify: FastifyInstance) {
   const authService = new AuthService(fastify.db, fastify.jwt);
 
+  const getCookieOptions = (request: any) => {
+    const isSecure = request.headers["x-forwarded-proto"] === "https";
+    return {
+      httpOnly: true,
+      path: "/api/auth",
+      sameSite: isSecure ? ("none" as const) : ("lax" as const),
+      secure: isSecure,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    };
+  };
+
+  const getClearCookieOptions = (request: any) => {
+    const isSecure = request.headers["x-forwarded-proto"] === "https";
+    return {
+      path: "/api/auth",
+      sameSite: isSecure ? ("none" as const) : ("lax" as const),
+      secure: isSecure,
+    };
+  };
+
   fastify.post("/register", async (request, reply) => {
     const body = registerSchema.parse(request.body);
     const { user, accessToken, refreshToken } = await authService.register(body);
 
-    reply.setCookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      path: "/api/auth",
-      sameSite: "lax",
-      secure: false,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    reply.setCookie("refreshToken", refreshToken, getCookieOptions(request));
 
     return reply.status(201).send({
       data: {
@@ -33,13 +47,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const body = loginSchema.parse(request.body);
     const { user, accessToken, refreshToken } = await authService.login(body);
 
-    reply.setCookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      path: "/api/auth",
-      sameSite: "lax",
-      secure: false,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    reply.setCookie("refreshToken", refreshToken, getCookieOptions(request));
 
     return reply.status(200).send({
       data: {
@@ -57,13 +65,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
 
-    reply.setCookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      path: "/api/auth",
-      sameSite: "lax",
-      secure: false,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    reply.setCookie("refreshToken", newRefreshToken, getCookieOptions(request));
 
     return reply.status(200).send({
       data: {
@@ -78,9 +80,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       await authService.logout(refreshToken);
     }
 
-    reply.clearCookie("refreshToken", {
-      path: "/api/auth",
-    });
+    reply.clearCookie("refreshToken", getClearCookieOptions(request));
 
     return reply.status(204).send();
   });

@@ -22,13 +22,13 @@ export default function ListsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-stone-900 tracking-tight">Your Lists</h1>
           <p className="text-sm text-stone-500 mt-1">Curate, bookmark, and organize entries.</p>
         </div>
-        <Link href="/lists/new">
-          <Button variant="primary" className="cursor-pointer">
+        <Link href="/lists/new" className="w-full sm:w-auto">
+          <Button variant="primary" className="w-full sm:w-auto cursor-pointer justify-center">
             ＋ New List
           </Button>
         </Link>
