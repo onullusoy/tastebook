@@ -21,7 +21,7 @@
     "@tastebook/db": "workspace:*",
     "@tastebook/shared": "workspace:*",
     "argon2": "^0.40.1",
-    "drizzle-orm": "^0.30.10",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^4.27.0",
     "fastify-plugin": "^5.1.0",
     "ioredis": "^5.4.1",
