@@ -50,6 +50,7 @@ class ApiClient {
     const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
     
     const headers = new Headers(options.headers);
+    headers.set("Bypass-Tunnel-Reminder", "true");
     if (this.accessToken) {
       headers.set("Authorization", `Bearer ${this.accessToken}`);
     }
