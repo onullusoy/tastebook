@@ -4,7 +4,7 @@ class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
-  private baseUrl = (() => {
+  public readonly baseUrl = (() => {
     let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
     if (url && !url.endsWith("/api") && !url.endsWith("/api/")) {
       url = `${url.replace(/\/$/, "")}/api`;

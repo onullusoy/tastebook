@@ -162,7 +162,7 @@ export default function RestaurantDetailPage() {
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
                 {restaurant.photos.map((photoRef, index) => {
                   const token = api.getAccessToken();
-                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+                  const baseUrl = api.baseUrl;
                   const thumbUrl = `${baseUrl}/places/photo?photo_reference=${photoRef}&maxwidth=400&token=${token || ""}`;
                   const zoomUrl = `${baseUrl}/places/photo?photo_reference=${photoRef}&maxwidth=1600&token=${token || ""}`;
                   return (
