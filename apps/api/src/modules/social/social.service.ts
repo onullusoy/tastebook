@@ -87,7 +87,7 @@ export class SocialService {
     return res?.count ?? 0;
   }
 
-  private async mapUsersToResponses(targetUsers: (typeof users.$inferSelect)[], viewerId?: string): Promise<UserResponse[]> {
+  async mapUsersToResponses(targetUsers: (typeof users.$inferSelect)[], viewerId?: string): Promise<UserResponse[]> {
     if (targetUsers.length === 0) return [];
 
     const userIds = targetUsers.map(u => u.id);

@@ -6,6 +6,9 @@ class ApiClient {
   private refreshSubscribers: ((token: string) => void)[] = [];
   private baseUrl = (() => {
     let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+    if (url && !url.endsWith("/api") && !url.endsWith("/api/")) {
+      url = `${url.replace(/\/$/, "")}/api`;
+    }
     if (typeof window !== "undefined") {
       const hostname = window.location.hostname;
       if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {

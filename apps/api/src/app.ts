@@ -43,7 +43,18 @@ export async function buildApp() {
         cb(null, true);
         return;
       }
-      cb(null, app.config.WEB_URL);
+
+      const allowedOrigins = [
+        app.config.WEB_URL,
+        "https://tastebook-web.vercel.app",
+      ];
+
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        cb(null, true);
+        return;
+      }
+
+      cb(null, false);
     },
     credentials: true,
   });
