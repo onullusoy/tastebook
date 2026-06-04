@@ -13,13 +13,15 @@ export default function FeedPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-black text-stone-900 tracking-tight">
-          {isRecommended ? "Recommended" : "Your Feed"}
-        </h1>
         {isRecommended && (
-          <p className="text-sm text-stone-500 font-semibold">
-            Follow or invite your friends to see their posts.
-          </p>
+          <div>
+            <h1 className="text-3xl font-black text-stone-900 tracking-tight">
+              Recommended
+            </h1>
+            <p className="text-sm text-stone-500 font-semibold">
+              Follow or invite your friends to see their posts.
+            </p>
+          </div>
         )}
       </div>
       <FeedList
