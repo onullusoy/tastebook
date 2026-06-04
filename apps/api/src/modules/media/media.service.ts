@@ -1,6 +1,6 @@
 import { createDb, entryMedia } from "@tastebook/db";
 import { eq, and, inArray, isNull } from "drizzle-orm";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "node:crypto";
 import sharp from "sharp";
 import { ValidationError } from "../../shared/errors";
@@ -161,11 +161,20 @@ export class MediaService {
   }
 
   getMediaUrl(objectKey: string): string {
-    return `http://${this.config.MINIO_ENDPOINT}:${this.config.MINIO_PORT}/${this.config.MINIO_BUCKET}/${objectKey}`;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${this.config.API_PORT}/api`;
+    return `${apiBaseUrl.replace(/\/$/, "")}/media/file/${objectKey}`;
   }
 
   getThumbnailUrl(objectKey: string): string {
     const thumbKey = objectKey.replace(/\.webp$/, "_thumb.webp");
     return this.getMediaUrl(thumbKey);
+  }
+
+  async getMediaStream(objectKey: string) {
+    const command = new GetObjectCommand({
+      Bucket: this.config.MINIO_BUCKET,
+      Key: objectKey,
+    });
+    return this.s3.send(command);
   }
 }

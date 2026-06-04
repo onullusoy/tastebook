@@ -53,10 +53,14 @@ class ApiClient {
       return data;
     }
     try {
+      const parsedApiUrl = new URL(this.baseUrl);
+      const apiHost = parsedApiUrl.host;
       const str = JSON.stringify(data);
       const sanitized = str
         .replace(/https?:\/\/localhost:9000/g, `http://${hostname}:9000`)
-        .replace(/https?:\/\/127.0.0.1:9000/g, `http://${hostname}:9000`);
+        .replace(/https?:\/\/127.0.0.1:9000/g, `http://${hostname}:9000`)
+        .replace(/https?:\/\/localhost:3001/g, `${parsedApiUrl.protocol}//${apiHost}`)
+        .replace(/https?:\/\/127.0.0.1:3001/g, `${parsedApiUrl.protocol}//${apiHost}`);
       return JSON.parse(sanitized);
     } catch (e) {
       return data;
