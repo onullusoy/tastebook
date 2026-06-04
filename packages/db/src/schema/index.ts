@@ -10,4 +10,5 @@ export * from "./refresh-tokens";
 export * from "./restaurants";
 export * from "./entry-likes";
 export * from "./entry-comments";
+export * from "./comment-likes";
 

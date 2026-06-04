@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { EntryResponse } from "@tastebook/shared/api-types";
 import { Avatar } from "../ui/Avatar";
 import { timeAgo } from "../../lib/date-utils";
-import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteComment, useDeleteEntry } from "../../hooks/use-entries";
+import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteComment, useDeleteEntry, useEditComment, useToggleLikeComment } from "../../hooks/use-entries";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserLists, useAddToList } from "../../hooks/use-lists";
 import { useToastStore } from "../../stores/toast-store";
@@ -49,6 +49,12 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
   const { data: comments, isLoading: isLoadingComments } = useComments(entry.id, showComments);
   const addCommentMutation = useAddComment(entry.id);
   const deleteCommentMutation = useDeleteComment(entry.id);
+  const editCommentMutation = useEditComment(entry.id);
+  const toggleLikeCommentMutation = useToggleLikeComment(entry.id);
+
+  const [activeCommentMenuId, setActiveCommentMenuId] = useState<string | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState("");
 
   const handleLikeToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -496,31 +502,149 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
                         size="sm"
                       />
                     </Link>
-                    <div className="bg-stone-50 rounded-2xl p-2.5 flex-1 min-w-0 border border-warm-100">
+                    <div className="bg-stone-50 rounded-2xl p-2.5 flex-1 min-w-0 border border-warm-100 relative">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
                         <Link href={`/profile/${comment.user.id}`} className="font-bold text-xs text-stone-850 hover:underline truncate">
                           {comment.user.display_name || comment.user.username}
                         </Link>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] text-stone-400">
-                            {timeAgo(comment.created_at)}
-                          </span>
-                          {(resolvedIsOwner || (user && user.id === comment.user.id)) && (
-                            <button
-                              onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this comment?")) {
-                                  deleteCommentMutation.mutate(comment.id);
-                                }
-                              }}
-                              disabled={deleteCommentMutation.isPending}
-                              className="text-[10px] text-stone-400 hover:text-red-600 font-bold transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                              Delete
-                            </button>
+                        
+                        {/* Kebab Menu */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setActiveCommentMenuId(activeCommentMenuId === comment.id ? null : comment.id);
+                            }}
+                            className="text-stone-400 hover:text-stone-600 p-0.5 rounded hover:bg-stone-200 transition-colors cursor-pointer flex items-center justify-center"
+                          >
+                            <EllipsisVertical size={14} />
+                          </button>
+                          
+                          {activeCommentMenuId === comment.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setActiveCommentMenuId(null)}
+                              />
+                              <div className="absolute right-0 mt-1 w-28 bg-white border border-warm-200 rounded-lg shadow-lg z-45 py-1 text-left">
+                                {user && user.id === comment.user.id ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setActiveCommentMenuId(null);
+                                        setEditingCommentId(comment.id);
+                                        setEditingCommentText(comment.content);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 transition-colors text-left flex items-center gap-1.5 cursor-pointer font-semibold animate-in fade-in slide-in-from-top-1 duration-100"
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setActiveCommentMenuId(null);
+                                        if (window.confirm("Are you sure you want to delete this comment?")) {
+                                          deleteCommentMutation.mutate(comment.id);
+                                        }
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs text-red-655 hover:bg-red-50 transition-colors text-left flex items-center gap-1.5 cursor-pointer font-semibold"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </>
+                                ) : resolvedIsOwner ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setActiveCommentMenuId(null);
+                                        if (window.confirm("Are you sure you want to delete this comment?")) {
+                                          deleteCommentMutation.mutate(comment.id);
+                                        }
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs text-red-655 hover:bg-red-50 transition-colors text-left flex items-center gap-1.5 cursor-pointer font-semibold"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setActiveCommentMenuId(null);
+                                        addToast("Comment reported.", "success");
+                                      }}
+                                      className="w-full px-3 py-1.5 text-xs text-stone-750 hover:bg-stone-50 transition-colors text-left flex items-center gap-1.5 cursor-pointer font-semibold"
+                                    >
+                                      ⚠️ Report
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setActiveCommentMenuId(null);
+                                      addToast("Comment reported.", "success");
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs text-stone-755 hover:bg-stone-50 transition-colors text-left flex items-center gap-1.5 cursor-pointer font-semibold"
+                                  >
+                                    ⚠️ Report
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
-                      <p className="text-stone-600 text-xs break-words leading-relaxed">{comment.content}</p>
+                      
+                      {editingCommentId === comment.id ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!editingCommentText.trim()) return;
+                            editCommentMutation.mutate({ commentId: comment.id, content: editingCommentText.trim() });
+                            setEditingCommentId(null);
+                          }}
+                          className="flex gap-2 items-center mt-1"
+                        >
+                          <input
+                            type="text"
+                            value={editingCommentText}
+                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            className="flex-1 bg-white border border-warm-250 rounded-xl px-2.5 py-1 text-xs text-stone-850 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            autoFocus
+                          />
+                          <button type="submit" className="text-xs text-primary-650 font-bold hover:underline cursor-pointer">
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCommentId(null)}
+                            className="text-xs text-stone-400 hover:underline cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <p className="text-stone-600 text-xs break-words leading-relaxed">{comment.content}</p>
+                          
+                          {/* Like & Timestamp Row */}
+                          <div className="flex items-center gap-2.5 mt-1.5 text-[10px] text-stone-400">
+                            <button
+                              onClick={() => {
+                                toggleLikeCommentMutation.mutate({
+                                  commentId: comment.id,
+                                  currentlyLiked: !!comment.is_liked,
+                                });
+                              }}
+                              className={`flex items-center gap-0.5 hover:text-red-500 transition-colors cursor-pointer font-semibold ${
+                                comment.is_liked ? "text-red-500" : ""
+                              }`}
+                            >
+                              <span>{comment.is_liked ? "❤️" : "🤍"}</span>
+                              {comment.likes_count > 0 && <span>{comment.likes_count}</span>}
+                            </button>
+                            <span>•</span>
+                            <span>{timeAgo(comment.created_at)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))

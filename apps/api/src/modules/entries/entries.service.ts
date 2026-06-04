@@ -1,4 +1,4 @@
-import { createDb, tasteEntries, users, follows, entryMedia, foodItems, lists, listItems, listCollaborators, restaurants, entryLikes, entryComments } from "@tastebook/db";
+import { createDb, tasteEntries, users, follows, entryMedia, foodItems, lists, listItems, listCollaborators, restaurants, entryLikes, entryComments, commentLikes } from "@tastebook/db";
 import { eq, and, or, inArray, desc, lt, sql, ne } from "drizzle-orm";
 import { NotFoundError, ForbiddenError, ValidationError } from "../../shared/errors";
 import type { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/schemas/entries";
@@ -802,6 +802,8 @@ export class EntriesService {
         entry_id: comment.entryId,
         content: comment.content,
         created_at: comment.createdAt.toISOString(),
+        likes_count: 0,
+        is_liked: false,
         user: {
           id: userRecord?.id ?? "",
           username: userRecord?.username ?? "",
@@ -832,11 +834,45 @@ export class EntriesService {
       .where(eq(entryComments.entryId, entryId))
       .orderBy(entryComments.createdAt);
 
+    const commentIds = rows.map((r) => r.comment.id);
+    const likesCountMap = new Map<string, number>();
+    const viewerLikedCommentIds = new Set<string>();
+
+    if (commentIds.length > 0) {
+      // 1. Fetch counts
+      const counts = await this.db
+        .select({
+          commentId: commentLikes.commentId,
+          count: sql<number>`count(${commentLikes.userId})::int`,
+        })
+        .from(commentLikes)
+        .where(inArray(commentLikes.commentId, commentIds))
+        .groupBy(commentLikes.commentId);
+      
+      counts.forEach((c) => likesCountMap.set(c.commentId, c.count));
+
+      // 2. Fetch viewer likes
+      if (viewerId) {
+        const viewerLikes = await this.db
+          .select({ commentId: commentLikes.commentId })
+          .from(commentLikes)
+          .where(
+            and(
+              eq(commentLikes.userId, viewerId),
+              inArray(commentLikes.commentId, commentIds)
+            )
+          );
+        viewerLikes.forEach((l) => viewerLikedCommentIds.add(l.commentId));
+      }
+    }
+
     return rows.map((r) => ({
       id: r.comment.id,
       entry_id: r.comment.entryId,
       content: r.comment.content,
       created_at: r.comment.createdAt.toISOString(),
+      likes_count: likesCountMap.get(r.comment.id) ?? 0,
+      is_liked: viewerLikedCommentIds.has(r.comment.id),
       user: {
         id: r.user.id,
         username: r.user.username,
@@ -877,6 +913,110 @@ export class EntriesService {
 
       return entryUserId;
     });
+  }
+
+  async editComment(userId: string, entryId: string, commentId: string, content: string): Promise<any> {
+    if (!content || content.trim().length === 0) {
+      throw new ValidationError("Comment content cannot be empty");
+    }
+
+    // Verify access
+    await this.getById(entryId, userId);
+
+    const [updatedComment] = await this.db
+      .update(entryComments)
+      .set({ content: content.trim() })
+      .where(
+        and(
+          eq(entryComments.id, commentId),
+          eq(entryComments.entryId, entryId),
+          eq(entryComments.userId, userId)
+        )
+      )
+      .returning();
+
+    if (!updatedComment) {
+      throw new ForbiddenError("You do not have permission to edit this comment or the comment was not found");
+    }
+
+    // Fetch user details for response
+    const userRecord = await this.db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    const countResult = await this.db
+      .select({ count: sql<number>`count(${commentLikes.userId})::int` })
+      .from(commentLikes)
+      .where(eq(commentLikes.commentId, commentId));
+    
+    const isLikedResult = await this.db
+      .select()
+      .from(commentLikes)
+      .where(
+        and(
+          eq(commentLikes.commentId, commentId),
+          eq(commentLikes.userId, userId)
+        )
+      )
+      .limit(1);
+
+    return {
+      id: updatedComment.id,
+      entry_id: updatedComment.entryId,
+      content: updatedComment.content,
+      created_at: updatedComment.createdAt.toISOString(),
+      likes_count: countResult[0]?.count ?? 0,
+      is_liked: isLikedResult.length > 0,
+      user: {
+        id: userRecord?.id ?? "",
+        username: userRecord?.username ?? "",
+        display_name: userRecord?.displayName ?? null,
+        avatar_url: userRecord?.avatarUrl ?? null,
+      },
+    };
+  }
+
+  async toggleCommentLike(userId: string, entryId: string, commentId: string, isLiked: boolean): Promise<void> {
+    // 1. Verify access / visibility of the entry
+    await this.getById(entryId, userId);
+
+    // 2. Verify comment exists
+    const commentRecord = await this.db
+      .select()
+      .from(entryComments)
+      .where(
+        and(
+          eq(entryComments.id, commentId),
+          eq(entryComments.entryId, entryId)
+        )
+      )
+      .limit(1);
+
+    if (commentRecord.length === 0) {
+      throw new NotFoundError("Comment not found");
+    }
+
+    if (isLiked) {
+      const existing = await this.db.query.commentLikes.findFirst({
+        where: and(
+          eq(commentLikes.userId, userId),
+          eq(commentLikes.commentId, commentId)
+        ),
+      });
+
+      if (!existing) {
+        await this.db.insert(commentLikes).values({ userId, commentId });
+      }
+    } else {
+      await this.db
+        .delete(commentLikes)
+        .where(
+          and(
+            eq(commentLikes.userId, userId),
+            eq(commentLikes.commentId, commentId)
+          )
+        );
+    }
   }
 
   async getCounters(entryId: string, viewerId?: string): Promise<{ likes_count: number; comments_count: number; is_liked: boolean }> {

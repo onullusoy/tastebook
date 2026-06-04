@@ -86,6 +86,25 @@ export default async function entriesRoutes(fastify: FastifyInstance) {
     return reply.status(200).send({ success: true });
   });
 
+  fastify.patch("/entries/:id/comments/:commentId", { onRequest: [authGuard] }, async (request, reply) => {
+    const { id, commentId } = request.params as { id: string; commentId: string };
+    const body = createCommentSchema.parse(request.body);
+    const comment = await entriesService.editComment(request.userId, id, commentId, body.content);
+    return reply.status(200).send({ data: comment });
+  });
+
+  fastify.post("/entries/:id/comments/:commentId/like", { onRequest: [authGuard] }, async (request, reply) => {
+    const { id, commentId } = request.params as { id: string; commentId: string };
+    await entriesService.toggleCommentLike(request.userId, id, commentId, true);
+    return reply.status(200).send({ success: true });
+  });
+
+  fastify.delete("/entries/:id/comments/:commentId/like", { onRequest: [authGuard] }, async (request, reply) => {
+    const { id, commentId } = request.params as { id: string; commentId: string };
+    await entriesService.toggleCommentLike(request.userId, id, commentId, false);
+    return reply.status(200).send({ success: true });
+  });
+
   // Counter Polling Endpoint
   fastify.get("/entries/:id/counters", { onRequest: [optionalAuthGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };

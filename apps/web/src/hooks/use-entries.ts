@@ -93,6 +93,8 @@ export interface Comment {
   entry_id: string;
   content: string;
   created_at: string;
+  likes_count: number;
+  is_liked: boolean;
   user: {
     id: string;
     username: string;
@@ -248,6 +250,65 @@ export function useDeleteComment(entryId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["entry-counters", entryId] });
       queryClient.invalidateQueries({ queryKey: ["entry", entryId] });
+    },
+  });
+}
+
+export function useEditComment(entryId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+      const res = await api.fetch<ApiResponse<Comment>>(`/entries/${entryId}/comments/${commentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ content }),
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["entry-comments", entryId] });
+    },
+  });
+}
+
+export function useToggleLikeComment(entryId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, currentlyLiked }: { commentId: string; currentlyLiked: boolean }) => {
+      await api.fetch(`/entries/${entryId}/comments/${commentId}/like`, {
+        method: currentlyLiked ? "DELETE" : "POST",
+      });
+    },
+    onMutate: async ({ commentId, currentlyLiked }) => {
+      await queryClient.cancelQueries({ queryKey: ["entry-comments", entryId] });
+
+      const previousComments = queryClient.getQueryData<Comment[]>(["entry-comments", entryId]);
+
+      queryClient.setQueryData<Comment[]>(["entry-comments", entryId], (old) => {
+        if (!old) return old;
+        return old.map((comment) => {
+          if (comment.id === commentId) {
+            const diff = currentlyLiked ? -1 : 1;
+            return {
+              ...comment,
+              likes_count: Math.max(0, comment.likes_count + diff),
+              is_liked: !currentlyLiked,
+            };
+          }
+          return comment;
+        });
+      });
+
+      return { previousComments };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousComments) {
+        queryClient.setQueryData(["entry-comments", entryId], context.previousComments);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["entry-comments", entryId] });
     },
   });
 }
