@@ -60,13 +60,13 @@ export default function EntryDetailsPage() {
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="cursor-pointer">
           ← Back
         </Button>
-        <h1 className="text-xl font-black text-stone-900">Entry Detail</h1>
       </div>
       <EntryCard
         entry={entry}
         onDelete={handleDelete}
         isOwner={isOwner}
         onImageClick={setZoomedImageUrl}
+        uncropped
       />
 
       <ImagePreviewModal

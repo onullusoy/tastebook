@@ -19,9 +19,10 @@ interface EntryCardProps {
   onRemove?: () => void;
   isOwner?: boolean;
   onImageClick?: (url: string) => void;
+  uncropped?: boolean;
 }
 
-export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick }: EntryCardProps) => {
+export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, uncropped }: EntryCardProps) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -283,32 +284,50 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick }: 
       </div>
 
       {entry.media && entry.media.length > 0 && (
-        <div className="relative aspect-video w-full bg-stone-100 flex items-center justify-center overflow-hidden">
+        <div className={`relative w-full bg-stone-100 flex items-center justify-center ${uncropped ? "h-auto" : "aspect-video overflow-hidden"}`}>
           {onImageClick ? (
             <button
               onClick={() => onImageClick(entry.media[activeImageIndex].url)}
-              className="w-full h-full text-left relative focus:outline-none pointer-events-none md:pointer-events-auto cursor-default md:cursor-zoom-in"
+              className={`w-full ${uncropped ? "h-auto" : "h-full"} text-left relative focus:outline-none cursor-zoom-in`}
               aria-label="Zoom image"
             >
-              <Image
-                src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
-                alt={entry.restaurant_name}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                priority={activeImageIndex === 0}
-                className="object-cover transition-all"
-              />
+              {uncropped ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={entry.media[activeImageIndex].url}
+                  alt={entry.restaurant_name}
+                  className="w-full h-auto max-h-[75vh] object-contain"
+                />
+              ) : (
+                <Image
+                  src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                  alt={entry.restaurant_name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority={activeImageIndex === 0}
+                  className="object-cover transition-all"
+                />
+              )}
             </button>
           ) : (
-            <Link href={`/entries/${entry.id}`} className="w-full h-full block relative">
-              <Image
-                src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
-                alt={entry.restaurant_name}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                priority={activeImageIndex === 0}
-                className="object-cover transition-all"
-              />
+            <Link href={`/entries/${entry.id}`} className={`w-full ${uncropped ? "h-auto" : "h-full"} block relative`}>
+              {uncropped ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={entry.media[activeImageIndex].url}
+                  alt={entry.restaurant_name}
+                  className="w-full h-auto max-h-[75vh] object-contain"
+                />
+              ) : (
+                <Image
+                  src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                  alt={entry.restaurant_name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority={activeImageIndex === 0}
+                  className="object-cover transition-all"
+                />
+              )}
             </Link>
           )}
           {entry.media.length > 1 && (
