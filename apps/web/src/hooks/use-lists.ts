@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api-client";
-import { ListResponse } from "@tastebook/shared/api-types";
+import { ApiResponse, ListResponse } from "@tastebook/shared/api-types";
 import { useAuthStore } from "../stores/auth-store";
 
 export function useUserLists(userId?: string) {
@@ -11,7 +11,7 @@ export function useUserLists(userId?: string) {
     queryKey: ["user-lists", targetUserId],
     queryFn: async () => {
       if (!targetUserId) return [];
-      const res = await api.fetch<{ data: ListResponse[] }>(`/users/${targetUserId}/lists`);
+      const res = await api.fetch<ApiResponse<ListResponse[]>>(`/users/${targetUserId}/lists`);
       return res.data;
     },
     enabled: !!targetUserId,
@@ -22,7 +22,7 @@ export function useList(id: string) {
   return useQuery<ListResponse & { items?: any[] }>({
     queryKey: ["list", id],
     queryFn: async () => {
-      const res = await api.fetch<{ data: any }>(`/lists/${id}`);
+      const res = await api.fetch<ApiResponse<ListResponse & { items?: any[] }>>(`/lists/${id}`);
       return res.data;
     },
     enabled: !!id,
@@ -35,10 +35,11 @@ export function useCreateList() {
   
   return useMutation({
     mutationFn: async (body: { title: string; description?: string; visibility: "public" | "friends" | "private" }) => {
-      return api.fetch<ListResponse>("/lists", {
+      const res = await api.fetch<ApiResponse<ListResponse>>("/lists", {
         method: "POST",
         body: JSON.stringify(body),
       });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-lists", user?.id] });

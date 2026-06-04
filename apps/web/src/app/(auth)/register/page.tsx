@@ -5,14 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { registerSchema, RegisterRequest } from "@tastebook/shared/schemas/auth";
+import { registerFormSchema, RegisterFormRequest } from "@tastebook/shared/schemas/auth";
 import { useRegister } from "../../../hooks/use-auth";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
 
-type RegisterFormInput = RegisterRequest & {
-  confirmPassword?: string;
-};
+type RegisterFormInput = RegisterFormRequest;
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,7 +23,7 @@ export default function RegisterPage() {
     watch,
     formState: { errors },
   } = useForm<RegisterFormInput>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       username: "",
       email: "",
@@ -40,16 +38,14 @@ export default function RegisterPage() {
 
   const onSubmit = (data: RegisterFormInput) => {
     setErrorMessage(null);
-    if (data.password !== data.confirmPassword) {
-      setErrorMessage("Passwords do not match");
-      return;
-    }
 
-    const { confirmPassword, ...registerData } = data;
+    const { confirmPassword: _, ...registerData } = data;
 
     registerUser(registerData, {
       onSuccess: () => {
-        router.push("/feed");
+        setTimeout(() => {
+          router.push("/feed");
+        }, 0);
       },
       onError: (err: any) => {
         if (err.status === 409) {
@@ -103,9 +99,10 @@ export default function RegisterPage() {
         type="password"
         placeholder="••••••••"
         error={
-          confirmPasswordValue && passwordValue !== confirmPasswordValue
+          errors.confirmPassword?.message ||
+          (confirmPasswordValue && passwordValue !== confirmPasswordValue
             ? "Passwords do not match"
-            : undefined
+            : undefined)
         }
         disabled={isPending}
         {...register("confirmPassword")}

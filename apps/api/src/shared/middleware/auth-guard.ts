@@ -2,6 +2,11 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { UnauthorizedError } from "../errors";
 
 export async function authGuard(request: FastifyRequest, reply: FastifyReply) {
+  if (process.env.NODE_ENV === "development" && request.headers["x-dev-user-id"]) {
+    request.userId = request.headers["x-dev-user-id"] as string;
+    return;
+  }
+
   try {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

@@ -4,7 +4,27 @@ class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
-  private baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+  private baseUrl = (() => {
+    let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+        try {
+          const parsed = new URL(url);
+          if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+            parsed.hostname = hostname;
+            url = parsed.toString();
+          }
+        } catch (e) {
+          // Fallback if URL is relative or invalid
+        }
+      }
+      console.log("[ApiClient] Client base URL:", url);
+    } else {
+      console.log("[ApiClient] Server base URL:", url);
+    }
+    return url;
+  })();
 
   setAccessToken(token: string | null) {
     this.accessToken = token;
@@ -31,11 +51,12 @@ class ApiClient {
       headers.set("Authorization", `Bearer ${this.accessToken}`);
     }
     
-    if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
 
     const config: RequestInit = {
+      credentials: "include",
       ...options,
       headers,
     };
@@ -53,10 +74,14 @@ class ApiClient {
             throw new ApiError(retryResponse.status, errBody.message || "Request failed", errBody.errors);
           }
           const resJson = await retryResponse.json();
-          return resJson.data !== undefined ? resJson.data : resJson;
+          return resJson;
         } catch (refreshError) {
           this.setAccessToken(null);
-          if (typeof window !== "undefined") {
+          if (
+            typeof window !== "undefined" &&
+            !window.location.pathname.startsWith("/login") &&
+            !window.location.pathname.startsWith("/register")
+          ) {
             window.location.href = "/login";
           }
           throw refreshError;
@@ -73,7 +98,7 @@ class ApiClient {
       }
 
       const resJson = await response.json();
-      return resJson.data !== undefined ? resJson.data : resJson;
+      return resJson;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
@@ -101,6 +126,7 @@ class ApiClient {
         headers: {
           "Content-Type": "application/json",
         },
+        body: "{}",
       });
 
       if (!response.ok) {
@@ -108,7 +134,7 @@ class ApiClient {
       }
 
       const res = await response.json();
-      const token = res.data?.access_token || res.access_token;
+      const token = res.data.access_token;
       if (!token) {
         throw new Error("No token returned in refresh response");
       }

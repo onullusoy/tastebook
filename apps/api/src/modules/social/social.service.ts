@@ -1,5 +1,5 @@
 import { createDb, users, follows } from "@tastebook/db";
-import { eq, and, or, sql, lt, desc, aliasedTable } from "drizzle-orm";
+import { eq, and, or, sql, lt, desc, aliasedTable, inArray } from "drizzle-orm";
 import { NotFoundError, ValidationError, ConflictError } from "../../shared/errors";
 import { encodeCursor, decodeCursor } from "../../shared/utils/cursor";
 import type { UserResponse, PaginatedResponse } from "@tastebook/shared/api-types";
@@ -89,34 +89,87 @@ export class SocialService {
 
   private async mapUsersToResponses(targetUsers: (typeof users.$inferSelect)[], viewerId?: string): Promise<UserResponse[]> {
     if (targetUsers.length === 0) return [];
-    
-    return Promise.all(
-      targetUsers.map(async (u) => {
-        const followerCount = await this.getFollowerCount(u.id);
-        const followingCount = await this.getFollowingCount(u.id);
-        
-        const response: UserResponse = {
-          id: u.id,
-          username: u.username,
-          display_name: u.displayName,
-          avatar_url: u.avatarUrl,
-          bio: u.bio,
-          created_at: u.createdAt.toISOString(),
-          follower_count: followerCount,
-          following_count: followingCount,
-        };
-        
-        if (viewerId) {
-          response.is_following = await this.isFollowing(viewerId, u.id);
-          response.is_friend = await this.areFriends(viewerId, u.id);
-        } else {
-          response.is_following = false;
-          response.is_friend = false;
-        }
-        
-        return response;
+
+    const userIds = targetUsers.map(u => u.id);
+
+    // Batch get follower counts
+    const followerCountsResult = await this.db
+      .select({
+        followingId: follows.followingId,
+        count: sql<number>`count(*)::int`,
       })
-    );
+      .from(follows)
+      .where(inArray(follows.followingId, userIds))
+      .groupBy(follows.followingId);
+
+    // Batch get following counts
+    const followingCountsResult = await this.db
+      .select({
+        followerId: follows.followerId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(follows)
+      .where(inArray(follows.followerId, userIds))
+      .groupBy(follows.followerId);
+
+    const followerCounts = new Map<string, number>();
+    for (const r of followerCountsResult) {
+      followerCounts.set(r.followingId, r.count);
+    }
+
+    const followingCounts = new Map<string, number>();
+    for (const r of followingCountsResult) {
+      followingCounts.set(r.followerId, r.count);
+    }
+
+    const viewerFollowsMap = new Set<string>();
+    const isFollowedByViewerMap = new Set<string>();
+
+    if (viewerId) {
+      const followsViewerIsFollowing = await this.db
+        .select({ followingId: follows.followingId })
+        .from(follows)
+        .where(
+          and(
+            eq(follows.followerId, viewerId),
+            inArray(follows.followingId, userIds)
+          )
+        );
+      for (const f of followsViewerIsFollowing) {
+        viewerFollowsMap.add(f.followingId);
+      }
+
+      const followsFollowingViewer = await this.db
+        .select({ followerId: follows.followerId })
+        .from(follows)
+        .where(
+          and(
+            eq(follows.followingId, viewerId),
+            inArray(follows.followerId, userIds)
+          )
+        );
+      for (const f of followsFollowingViewer) {
+        isFollowedByViewerMap.add(f.followerId);
+      }
+    }
+
+    return targetUsers.map((u) => {
+      const isFollowing = viewerId ? viewerFollowsMap.has(u.id) : false;
+      const isFriend = viewerId ? (isFollowing && isFollowedByViewerMap.has(u.id)) : false;
+
+      return {
+        id: u.id,
+        username: u.username,
+        display_name: u.displayName,
+        avatar_url: u.avatarUrl,
+        bio: u.bio,
+        created_at: u.createdAt.toISOString(),
+        follower_count: followerCounts.get(u.id) ?? 0,
+        following_count: followingCounts.get(u.id) ?? 0,
+        is_following: isFollowing,
+        is_friend: isFriend,
+      };
+    });
   }
 
   async getFollowers(userId: string, cursor?: string, limit = 20, viewerId?: string): Promise<PaginatedResponse<UserResponse>> {

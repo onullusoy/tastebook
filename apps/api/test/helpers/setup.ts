@@ -28,12 +28,17 @@ try {
 export async function createTestApp(): Promise<FastifyInstance> {
   const app = await buildApp();
   await app.ready();
+  console.log("=== REGISTERED ROUTES ===");
+  console.log(app.printRoutes());
+  console.log("=========================");
   return app;
 }
 
 export async function truncateTables(db: any) {
   const tables = [
     "list_items",
+    "list_collaborators",
+    "food_items",
     "lists",
     "entry_media",
     "follows",
@@ -66,9 +71,13 @@ export async function createTestUser(
   const parsed = JSON.parse(res.body);
   const data = parsed.data;
 
+  if (!data) {
+    console.error(`[createTestUser] Registration failed! Status: ${res.statusCode}, Body: ${res.body}`);
+  }
+
   return {
-    user: data.user,
-    accessToken: data.access_token,
+    user: data?.user,
+    accessToken: data?.access_token,
     cookie: res.cookies[0],
   };
 }

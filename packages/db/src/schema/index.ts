@@ -1,7 +1,13 @@
 export * from "./users";
 export * from "./taste-entries";
+export * from "./food-items";
 export * from "./entry-media";
 export * from "./follows";
 export * from "./lists";
 export * from "./list-items";
+export * from "./list-collaborators";
 export * from "./refresh-tokens";
+export * from "./restaurants";
+export * from "./entry-likes";
+export * from "./entry-comments";
+

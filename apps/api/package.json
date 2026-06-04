@@ -5,10 +5,12 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node --env-file=../../.env --import tsx --watch src/server.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "optimize-legacy": "node --env-file=../../.env --import tsx src/scripts/optimize-legacy-images.ts",
+    "backfill-addresses": "node --env-file=../../.env --import tsx src/scripts/backfill-formatted-addresses.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.588.0",
@@ -23,6 +25,7 @@
     "fastify": "^4.27.0",
     "fastify-plugin": "^5.1.0",
     "ioredis": "^5.4.1",
+    "sharp": "^0.34.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -2,6 +2,7 @@ import { createDb, users, follows } from "@tastebook/db";
 import { eq, and, or, sql } from "drizzle-orm";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "node:crypto";
+import sharp from "sharp";
 import { NotFoundError, ValidationError } from "../../shared/errors";
 import type { UpdateProfileRequest } from "@tastebook/shared/schemas/users";
 import type { UserResponse } from "@tastebook/shared/api-types";
@@ -23,29 +24,23 @@ export class UsersService {
       throw new NotFoundError("User not found");
     }
 
-    const [followerRes] = await this.db
+    const followerQuery = this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
       .where(eq(follows.followingId, targetUserId));
 
-    const [followingRes] = await this.db
+    const followingQuery = this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(follows)
       .where(eq(follows.followerId, targetUserId));
 
-    const response: UserResponse = {
-      id: user.id,
-      username: user.username,
-      display_name: user.displayName,
-      avatar_url: user.avatarUrl,
-      bio: user.bio,
-      created_at: user.createdAt.toISOString(),
-      follower_count: followerRes?.count ?? 0,
-      following_count: followingRes?.count ?? 0,
-    };
+    let followerCount = 0;
+    let followingCount = 0;
+    let isFollowing = false;
+    let isFriend = false;
 
     if (viewerId) {
-      const [isFollowingRes] = await this.db
+      const isFollowingQuery = this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(follows)
         .where(
@@ -55,9 +50,7 @@ export class UsersService {
           )
         );
 
-      response.is_following = (isFollowingRes?.count ?? 0) > 0;
-
-      const [isFriendRes] = await this.db
+      const isFriendQuery = this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(follows)
         .where(
@@ -73,13 +66,39 @@ export class UsersService {
           )
         );
 
-      response.is_friend = (isFriendRes?.count ?? 0) === 2;
+      const [followerRes, followingRes, isFollowingRes, isFriendRes] = await Promise.all([
+        followerQuery,
+        followingQuery,
+        isFollowingQuery,
+        isFriendQuery,
+      ]);
+
+      followerCount = followerRes[0]?.count ?? 0;
+      followingCount = followingRes[0]?.count ?? 0;
+      isFollowing = (isFollowingRes[0]?.count ?? 0) > 0;
+      isFriend = (isFriendRes[0]?.count ?? 0) === 2;
     } else {
-      response.is_following = false;
-      response.is_friend = false;
+      const [followerRes, followingRes] = await Promise.all([
+        followerQuery,
+        followingQuery,
+      ]);
+
+      followerCount = followerRes[0]?.count ?? 0;
+      followingCount = followingRes[0]?.count ?? 0;
     }
 
-    return response;
+    return {
+      id: user.id,
+      username: user.username,
+      display_name: user.displayName,
+      avatar_url: user.avatarUrl,
+      bio: user.bio,
+      created_at: user.createdAt.toISOString(),
+      follower_count: followerCount,
+      following_count: followingCount,
+      is_following: isFollowing,
+      is_friend: isFriend,
+    };
   }
 
   async updateProfile(userId: string, data: UpdateProfileRequest): Promise<UserResponse> {
@@ -137,18 +156,24 @@ export class UsersService {
       throw new ValidationError("Invalid file type. Magic byte validation failed.");
     }
 
-    let ext = "jpg";
-    if (isPng) ext = "png";
-    if (isWebp) ext = "webp";
+    let optimizedBuffer: Buffer;
+    try {
+      optimizedBuffer = await sharp(fileBuffer)
+        .resize({ width: 150, height: 150, fit: "cover" })
+        .webp({ quality: 85 })
+        .toBuffer();
+    } catch (error) {
+      throw new ValidationError("Failed to optimize avatar image.");
+    }
 
-    const key = `avatars/${userId}/${crypto.randomUUID()}.${ext}`;
+    const key = `avatars/${userId}/${crypto.randomUUID()}.webp`;
 
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.config.MINIO_BUCKET,
         Key: key,
-        Body: fileBuffer,
-        ContentType: mimeType,
+        Body: optimizedBuffer,
+        ContentType: "image/webp",
       })
     );
 

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { UserResponse } from "@tastebook/shared/api-types";
+import { UserResponse, ApiResponse } from "@tastebook/shared/api-types";
 import { api } from "../lib/api-client";
 
 interface AuthState {
@@ -35,8 +35,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     set({ isLoading: true });
     try {
-      const user = await api.fetch<UserResponse>("/auth/me");
-      set({ user, isAuthenticated: true, isLoading: false });
+      const res = await api.fetch<ApiResponse<UserResponse>>("/auth/me");
+      set({ user: res.data, isAuthenticated: true, isLoading: false });
     } catch {
       set({ user: null, isAuthenticated: false, isLoading: false });
     }

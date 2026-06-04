@@ -2,6 +2,7 @@ import { createDb, entryMedia } from "@tastebook/db";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "node:crypto";
+import sharp from "sharp";
 import { ValidationError } from "../../shared/errors";
 import type { MediaResponse } from "@tastebook/shared/api-types";
 import type { Config } from "../../shared/plugins/config";
@@ -38,28 +39,52 @@ export class MediaService {
       throw new ValidationError("Magic byte validation failed for WebP.");
     }
 
-    let ext = "jpg";
-    if (isPng) ext = "png";
-    if (isWebp) ext = "webp";
+    let optimizedBuffer: Buffer;
+    let thumbBuffer: Buffer;
+    try {
+      optimizedBuffer = await sharp(fileBuffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
 
-    const objectKey = `entries/${userId}/${crypto.randomUUID()}.${ext}`;
+      thumbBuffer = await sharp(fileBuffer)
+        .resize({ width: 400, withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+    } catch (error) {
+      throw new ValidationError("Failed to optimize image.");
+    }
 
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.config.MINIO_BUCKET,
-        Key: objectKey,
-        Body: fileBuffer,
-        ContentType: mimeType,
-      })
-    );
+    const mediaId = crypto.randomUUID();
+    const objectKey = `entries/${userId}/${mediaId}.webp`;
+    const thumbKey = `entries/${userId}/${mediaId}_thumb.webp`;
+
+    await Promise.all([
+      this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.config.MINIO_BUCKET,
+          Key: objectKey,
+          Body: optimizedBuffer,
+          ContentType: "image/webp",
+        })
+      ),
+      this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.config.MINIO_BUCKET,
+          Key: thumbKey,
+          Body: thumbBuffer,
+          ContentType: "image/webp",
+        })
+      )
+    ]);
 
     const [row] = await this.db
       .insert(entryMedia)
       .values({
         userId,
         url: objectKey,
-        mimeType,
-        sizeBytes: fileBuffer.length,
+        mimeType: "image/webp",
+        sizeBytes: optimizedBuffer.length,
         orderIndex: 0,
       })
       .returning();
@@ -67,7 +92,8 @@ export class MediaService {
     return {
       id: row.id,
       url: this.getMediaUrl(objectKey),
-      mime_type: row.mimeType ?? mimeType,
+      thumbnail_url: this.getMediaUrl(thumbKey),
+      mime_type: "image/webp",
       order_index: row.orderIndex,
     };
   }
@@ -111,12 +137,21 @@ export class MediaService {
 
     for (const row of mediaRows) {
       try {
-        await this.s3.send(
-          new DeleteObjectCommand({
-            Bucket: this.config.MINIO_BUCKET,
-            Key: row.url,
-          })
-        );
+        const thumbKey = row.url.replace(/\.webp$/, "_thumb.webp");
+        await Promise.all([
+          this.s3.send(
+            new DeleteObjectCommand({
+              Bucket: this.config.MINIO_BUCKET,
+              Key: row.url,
+            })
+          ),
+          this.s3.send(
+            new DeleteObjectCommand({
+              Bucket: this.config.MINIO_BUCKET,
+              Key: thumbKey,
+            })
+          ).catch(() => {})
+        ]);
       } catch (e) {}
     }
 
@@ -127,5 +162,10 @@ export class MediaService {
 
   getMediaUrl(objectKey: string): string {
     return `http://${this.config.MINIO_ENDPOINT}:${this.config.MINIO_PORT}/${this.config.MINIO_BUCKET}/${objectKey}`;
+  }
+
+  getThumbnailUrl(objectKey: string): string {
+    const thumbKey = objectKey.replace(/\.webp$/, "_thumb.webp");
+    return this.getMediaUrl(thumbKey);
   }
 }

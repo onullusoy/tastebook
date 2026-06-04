@@ -2,20 +2,52 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { EntryResponse } from "@tastebook/shared/api-types";
 import { Avatar } from "../ui/Avatar";
 import { AddToListButton } from "../entry/AddToListButton";
 import { timeAgo } from "../../lib/date-utils";
+import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteComment } from "../../hooks/use-entries";
+import { useAuthStore } from "../../stores/auth-store";
 
 interface EntryCardProps {
   entry: EntryResponse;
   onDelete?: () => void;
   isOwner?: boolean;
+  onImageClick?: (url: string) => void;
 }
 
-export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
+export const EntryCard = ({ entry, onDelete, isOwner, onImageClick }: EntryCardProps) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const { data: counters } = useEntryCounters(entry.id, {
+    likes_count: entry.likes_count,
+    comments_count: entry.comments_count,
+    is_liked: !!entry.is_liked,
+  });
+
+  const { user } = useAuthStore();
+  const toggleLikeMutation = useToggleLike(entry.id);
+  const [showComments, setShowComments] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
+
+  const { data: comments, isLoading: isLoadingComments } = useComments(entry.id, showComments);
+  const addCommentMutation = useAddComment(entry.id);
+  const deleteCommentMutation = useDeleteComment(entry.id);
+
+  const handleLikeToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLikeMutation.mutate(!!counters?.is_liked);
+  };
+
+  const handleCommentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim()) return;
+    addCommentMutation.mutate(newCommentText.trim());
+    setNewCommentText("");
+  };
 
   const getRatingBadgeClass = (rating: number) => {
     if (rating >= 7) return "bg-green-100 text-green-800 border-green-200";
@@ -27,7 +59,9 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
     e.preventDefault();
     e.stopPropagation();
     if (entry.media.length > 0) {
-      setActiveImageIndex((prev) => (prev === 0 ? entry.media.length - 1 : prev - 1));
+      setActiveImageIndex((prev) =>
+        prev === 0 ? entry.media.length - 1 : prev - 1,
+      );
     }
   };
 
@@ -35,16 +69,22 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
     e.preventDefault();
     e.stopPropagation();
     if (entry.media.length > 0) {
-      setActiveImageIndex((prev) => (prev === entry.media.length - 1 ? 0 : prev + 1));
+      setActiveImageIndex((prev) =>
+        prev === entry.media.length - 1 ? 0 : prev + 1,
+      );
     }
   };
 
   const priceSymbols = entry.price_level ? "$".repeat(entry.price_level) : "";
+  const foodItemNames = entry.food_items?.map((fi) => fi.name) ?? [];
 
   return (
     <div className="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
       <div className="p-4 flex items-center justify-between">
-        <Link href={`/profile/${entry.user.id}`} className="flex items-center gap-3 group">
+        <Link
+          href={`/profile/${entry.user.id}`}
+          className="flex items-center gap-3 group"
+        >
           <Avatar
             src={entry.user.avatar_url}
             username={entry.user.username}
@@ -82,13 +122,33 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
 
       {entry.media && entry.media.length > 0 ? (
         <div className="relative aspect-video w-full bg-stone-100 flex items-center justify-center overflow-hidden">
-          <Link href={`/entries/${entry.id}`} className="w-full h-full block">
-            <img
-              src={entry.media[activeImageIndex].url}
-              alt={entry.dish_name}
-              className="w-full h-full object-cover transition-all"
-            />
-          </Link>
+          {onImageClick ? (
+            <button
+              onClick={() => onImageClick(entry.media[activeImageIndex].url)}
+              className="w-full h-full text-left relative focus:outline-none pointer-events-none md:pointer-events-auto cursor-default md:cursor-zoom-in"
+              aria-label="Zoom image"
+            >
+              <Image
+                src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                alt={entry.restaurant_name}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                priority={activeImageIndex === 0}
+                className="object-cover transition-all"
+              />
+            </button>
+          ) : (
+            <Link href={`/entries/${entry.id}`} className="w-full h-full block relative">
+              <Image
+                src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                alt={entry.restaurant_name}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                priority={activeImageIndex === 0}
+                className="object-cover transition-all"
+              />
+            </Link>
+          )}
           {entry.media.length > 1 && (
             <>
               <button
@@ -113,7 +173,9 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
                       setActiveImageIndex(index);
                     }}
                     className={`w-1.5 h-1.5 rounded-full transition-all ${
-                      index === activeImageIndex ? "bg-white scale-125" : "bg-white/50"
+                      index === activeImageIndex
+                        ? "bg-white scale-125"
+                        : "bg-white/50"
                     }`}
                   />
                 ))}
@@ -123,7 +185,10 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
         </div>
       ) : (
         <div className="aspect-video w-full bg-stone-100 flex items-center justify-center border-y border-warm-100">
-          <Link href={`/entries/${entry.id}`} className="text-stone-400 text-4xl">
+          <Link
+            href={`/entries/${entry.id}`}
+            className="text-stone-400 text-4xl"
+          >
             🍲
           </Link>
         </div>
@@ -132,23 +197,60 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
       <div className="p-4 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="min-w-0">
-            <Link
-              href={`/entries/${entry.id}`}
-              className="font-bold text-lg text-stone-800 hover:text-primary-500 transition-colors block truncate"
-            >
-              {entry.dish_name}
-            </Link>
-            {(entry.restaurant_name || entry.city) && (
-              <span className="text-sm text-stone-500 font-semibold truncate block mt-0.5">
-                📍 {entry.restaurant_name || "Unknown Restaurant"}
-                {entry.city && ` • ${entry.city}`}
-              </span>
+            {entry.google_place_id ? (
+              <Link
+                href={`/restaurants/${entry.google_place_id}`}
+                className="font-bold text-lg text-stone-850 hover:text-primary-500 hover:underline transition-colors block truncate"
+              >
+                {entry.restaurant_name}
+              </Link>
+            ) : (
+              <Link
+                href={`/entries/${entry.id}`}
+                className="font-bold text-lg text-stone-850 hover:text-primary-500 transition-colors block truncate"
+              >
+                {entry.restaurant_name}
+              </Link>
+            )}
+            <span className="text-sm text-stone-500 font-semibold truncate block mt-0.5">
+              📍{" "}
+              <Link
+                href={`/city/${encodeURIComponent(entry.city)}`}
+                className="hover:underline hover:text-primary-500 transition-colors"
+              >
+                {entry.city}
+              </Link>
+              , {entry.country}
+            </span>
+            {foodItemNames.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {foodItemNames.map((name, i) => (
+                  <span
+                    key={i}
+                    className="text-xs bg-warm-100 text-stone-600 px-2 py-0.5 rounded-full border border-warm-200"
+                  >
+                    🍽️ {name}
+                  </span>
+                ))}
+              </div>
+            )}
+            {entry.atmosphere_tags && entry.atmosphere_tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {entry.atmosphere_tags.map((tag, i) => (
+                  <span
+                    key={i}
+                    className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-100"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
             <span
               className={`px-2.5 py-1 text-xs font-black rounded-lg border ${getRatingBadgeClass(
-                entry.rating
+                entry.rating,
               )}`}
             >
               ★ {entry.rating}/10
@@ -172,6 +274,106 @@ export const EntryCard = ({ entry, onDelete, isOwner }: EntryCardProps) => {
                 {isExpanded ? "Show Less" : "Read More"}
               </button>
             ) : null}
+          </div>
+        )}
+
+        {/* Social interactions row */}
+        <div className="mt-4 pt-3 border-t border-warm-100 flex items-center justify-between">
+          <div className="flex gap-4">
+            <button
+              onClick={handleLikeToggle}
+              className={`flex items-center gap-1.5 text-sm font-semibold transition-all duration-200 py-1.5 px-3 rounded-full hover:bg-stone-50 ${
+                counters?.is_liked ? "text-red-500 scale-105" : "text-stone-500 hover:text-red-500"
+              }`}
+            >
+              <span className="text-base">{counters?.is_liked ? "❤️" : "🤍"}</span>
+              <span>{counters?.likes_count}</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowComments(!showComments);
+              }}
+              className={`flex items-center gap-1.5 text-sm font-semibold transition-all py-1.5 px-3 rounded-full hover:bg-stone-50 ${
+                showComments ? "text-primary-650 bg-primary-50" : "text-stone-500 hover:text-primary-500"
+              }`}
+            >
+              <span className="text-base">💬</span>
+              <span>{counters?.comments_count}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Comment panel */}
+        {showComments && (
+          <div className="mt-3 pt-3 border-t border-warm-150 animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Comments</h4>
+            
+            {/* Comments list */}
+            <div className="space-y-3 max-h-60 overflow-y-auto mb-3 pr-1 scrollbar-thin">
+              {isLoadingComments ? (
+                <p className="text-xs text-stone-400 py-2">Loading comments...</p>
+              ) : comments && comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start gap-2.5 text-sm">
+                    <Link href={`/profile/${comment.user.id}`} className="flex-shrink-0">
+                      <Avatar
+                        src={comment.user.avatar_url}
+                        username={comment.user.username}
+                        size="sm"
+                      />
+                    </Link>
+                    <div className="bg-stone-50 rounded-2xl p-2.5 flex-1 min-w-0 border border-warm-100">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <Link href={`/profile/${comment.user.id}`} className="font-bold text-xs text-stone-850 hover:underline truncate">
+                          {comment.user.display_name || comment.user.username}
+                        </Link>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-stone-400">
+                            {timeAgo(comment.created_at)}
+                          </span>
+                          {(isOwner || (user && user.id === comment.user.id)) && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to delete this comment?")) {
+                                  deleteCommentMutation.mutate(comment.id);
+                                }
+                              }}
+                              disabled={deleteCommentMutation.isPending}
+                              className="text-[10px] text-stone-400 hover:text-red-600 font-bold transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-stone-600 text-xs break-words leading-relaxed">{comment.content}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-stone-400 py-2">No comments yet. Be the first to say something!</p>
+              )}
+            </div>
+
+            {/* Comment input form */}
+            <form onSubmit={handleCommentSubmit} className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 bg-stone-50 hover:bg-stone-100/50 focus:bg-white text-xs px-3.5 py-2 rounded-full border border-warm-250 focus:border-primary-400 focus:outline-none transition-all placeholder:text-stone-400 text-stone-700"
+              />
+              <button
+                type="submit"
+                disabled={!newCommentText.trim() || addCommentMutation.isPending}
+                className="bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs px-3.5 py-2 rounded-full transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                Send
+              </button>
+            </form>
           </div>
         )}
       </div>

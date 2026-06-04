@@ -10,6 +10,7 @@ import { Avatar } from "../../../../components/ui/Avatar";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Textarea } from "../../../../components/ui/Textarea";
+import { FollowsModal } from "../../../../components/profile/FollowsModal";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -28,6 +29,14 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
+  
+  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  const [socialModalTab, setSocialModalTab] = useState<"followers" | "following" | "friends">("followers");
+
+  const openSocialModal = (tab: "followers" | "following" | "friends") => {
+    setSocialModalTab(tab);
+    setIsSocialModalOpen(true);
+  };
 
   const isOwnProfile = currentUser?.id === id;
   const entries = entriesData?.pages.flatMap((page) => page.data) || [];
@@ -192,18 +201,24 @@ export default function ProfilePage() {
               </span>
               <span className="text-stone-500 text-xs font-bold uppercase">Entries</span>
             </div>
-            <div className="flex flex-col">
+            <button
+              onClick={() => openSocialModal("followers")}
+              className="flex flex-col text-left hover:opacity-75 transition-opacity focus:outline-none cursor-pointer"
+            >
               <span className="text-stone-900 font-black text-lg">
                 {user.follower_count ?? 0}
               </span>
               <span className="text-stone-500 text-xs font-bold uppercase">Followers</span>
-            </div>
-            <div className="flex flex-col">
+            </button>
+            <button
+              onClick={() => openSocialModal("following")}
+              className="flex flex-col text-left hover:opacity-75 transition-opacity focus:outline-none cursor-pointer"
+            >
               <span className="text-stone-900 font-black text-lg">
                 {user.following_count ?? 0}
               </span>
               <span className="text-stone-500 text-xs font-bold uppercase">Following</span>
-            </div>
+            </button>
           </div>
         </div>
       </div>
@@ -224,6 +239,13 @@ export default function ProfilePage() {
           }
         />
       </div>
+
+      <FollowsModal
+        isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        userId={id}
+        initialTab={socialModalTab}
+      />
     </div>
   );
 }

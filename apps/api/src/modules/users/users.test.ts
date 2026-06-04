@@ -4,6 +4,7 @@ import request from "supertest";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { createTestApp, truncateTables, createTestUserWithAuth } from "../../../test/helpers/setup";
 import { follows } from "@tastebook/db";
+import { TINY_JPEG } from "../../../test/helpers/fixtures";
 
 describe("Users Module Integration Tests", () => {
   let app: FastifyInstance;
@@ -140,12 +141,11 @@ describe("Users Module Integration Tests", () => {
 
   it("POST /users/me/avatar — valid JPEG upload → 200, avatar_url set, accessible via URL", async () => {
     const alice = await createTestUserWithAuth(app);
-    const validJpeg = Buffer.from("FFD8FFDB004300080606070605080707070909080A0C140D0C0B0B0C1912130F141D1A1F1E1D1A1C1C20242E2720222C231C1C2837292C30313434341F27393D38323C2E333432FFC0000B080001000101011100FFC4000F000101000000000000000000000000000000FFC4000B1000000000000000000000000000000000FFDA0008010100003F0037FFD9", "hex");
 
     const res = await request(app.server)
       .post("/users/me/avatar")
       .set("Authorization", alice.headers.Authorization)
-      .attach("avatar", validJpeg, { filename: "avatar.jpg", contentType: "image/jpeg" });
+      .attach("avatar", TINY_JPEG, { filename: "avatar.jpg", contentType: "image/jpeg" });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty("avatar_url");
@@ -179,12 +179,11 @@ describe("Users Module Integration Tests", () => {
 
   it("POST /users/me/avatar — replaces previous avatar (upload 2x, verify old deleted)", async () => {
     const alice = await createTestUserWithAuth(app);
-    const validJpeg = Buffer.from("FFD8FFDB004300080606070605080707070909080A0C140D0C0B0B0C1912130F141D1A1F1E1D1A1C1C20242E2720222C231C1C2837292C30313434341F27393D38323C2E333432FFC0000B080001000101011100FFC4000F000101000000000000000000000000000000FFC4000B1000000000000000000000000000000000FFDA0008010100003F0037FFD9", "hex");
 
     const res1 = await request(app.server)
       .post("/users/me/avatar")
       .set("Authorization", alice.headers.Authorization)
-      .attach("avatar", validJpeg, { filename: "avatar1.jpg", contentType: "image/jpeg" });
+      .attach("avatar", TINY_JPEG, { filename: "avatar1.jpg", contentType: "image/jpeg" });
 
     expect(res1.status).toBe(200);
     const firstUrl = res1.body.data.avatar_url;
@@ -192,7 +191,7 @@ describe("Users Module Integration Tests", () => {
     const res2 = await request(app.server)
       .post("/users/me/avatar")
       .set("Authorization", alice.headers.Authorization)
-      .attach("avatar", validJpeg, { filename: "avatar2.jpg", contentType: "image/jpeg" });
+      .attach("avatar", TINY_JPEG, { filename: "avatar2.jpg", contentType: "image/jpeg" });
 
     expect(res2.status).toBe(200);
     const secondUrl = res2.body.data.avatar_url;

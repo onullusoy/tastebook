@@ -12,8 +12,9 @@ const configSchema = z.object({
   MINIO_BUCKET: z.string(),
   MINIO_USE_SSL: z.preprocess((val) => val === "true" || val === true, z.boolean()),
   API_PORT: z.preprocess((val) => Number(val || 3001), z.number()),
-  API_HOST: z.string().default("0.0.0.0"),
+  API_HOST: z.string().default("::"),
   WEB_URL: z.string().url().default("http://localhost:3000"),
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

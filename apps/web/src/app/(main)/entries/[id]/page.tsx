@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useEntry, useDeleteEntry } from "../../../../hooks/use-entries";
 import { useAuthStore } from "../../../../stores/auth-store";
@@ -8,6 +8,7 @@ import { useToastStore } from "../../../../stores/toast-store";
 import { EntryCard } from "../../../../components/feed/EntryCard";
 import { Spinner } from "../../../../components/ui/Spinner";
 import { Button } from "../../../../components/ui/Button";
+import { ImagePreviewModal } from "../../../../components/entry/ImagePreviewModal";
 
 export default function EntryDetailsPage() {
   const params = useParams();
@@ -18,6 +19,8 @@ export default function EntryDetailsPage() {
   const deleteEntry = useDeleteEntry();
   const { user } = useAuthStore();
   const { addToast } = useToastStore();
+
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
   const isOwner = user?.id === entry?.user.id;
 
@@ -59,7 +62,19 @@ export default function EntryDetailsPage() {
         </Button>
         <h1 className="text-xl font-black text-stone-900">Entry Detail</h1>
       </div>
-      <EntryCard entry={entry} onDelete={handleDelete} isOwner={isOwner} />
+      <EntryCard
+        entry={entry}
+        onDelete={handleDelete}
+        isOwner={isOwner}
+        onImageClick={setZoomedImageUrl}
+      />
+
+      <ImagePreviewModal
+        isOpen={!!zoomedImageUrl}
+        onClose={() => setZoomedImageUrl(null)}
+        imageUrl={zoomedImageUrl || ""}
+        altText={entry.restaurant_name}
+      />
     </div>
   );
 }

@@ -44,19 +44,23 @@ describe("Tastebook MVP End-to-End Smoke Test", () => {
       .post("/entries")
       .set("Authorization", `Bearer ${aliceToken}`)
       .send({
-        dish_name: "Delicious Carbonara",
         restaurant_name: "Roma Trattoria",
         city: "Rome",
         country: "Italy",
         price_level: 3,
         rating: 9,
-        notes: "Absolute perfection!",
+        food_items: [
+          { name: "Delicious Carbonara", notes: "Absolute perfection!" },
+        ],
+        atmosphere_tags: ["cozy", "romantic"],
+        notes: "One of the best meals I've ever had!",
         visibility: "public",
         media_ids: [],
       });
 
     expect(createEntryRes.status).toBe(201);
-    expect(createEntryRes.body.data.dish_name).toBe("Delicious Carbonara");
+    expect(createEntryRes.body.data.restaurant_name).toBe("Roma Trattoria");
+    expect(createEntryRes.body.data.food_items[0].name).toBe("Delicious Carbonara");
 
     const registerBobRes = await request(app.server)
       .post("/auth/register")
@@ -82,7 +86,7 @@ describe("Tastebook MVP End-to-End Smoke Test", () => {
     expect(feedRes.status).toBe(200);
     const feedEntries = feedRes.body.data;
     expect(feedEntries.length).toBeGreaterThanOrEqual(1);
-    expect(feedEntries[0].dish_name).toBe("Delicious Carbonara");
+    expect(feedEntries[0].food_items[0].name).toBe("Delicious Carbonara");
     expect(feedEntries[0].user.username).toBe("alice");
   });
 });

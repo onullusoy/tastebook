@@ -67,7 +67,7 @@ export const FeedList = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+      <div className="flex flex-col gap-6 max-w-xl mx-auto w-full">
         {entries.map((entry) => (
           <EntryCard key={entry.id} entry={entry} />
         ))}

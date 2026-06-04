@@ -61,3 +61,14 @@
 - Built high-performance Drizzle queries using `innerJoin` and `aliasedTable` for friends list query, and efficient mapping of paginated user responses with follower/following counters and friendship status flags.
 - Registered endpoints in Fastify app and tested all flows with 16 integration tests in `social.test.ts`, checking self-follow, cascading user deletes, unfollow counts, and cursor pagination.
 - Achieved 100% test success rate, with all 74 integration tests passing flawlessly.
+
+## P2P Recommendation Pivot Backend (Task 8.1)
+- Redefined database schemas: transformed `taste_entries` to drop `dish_name` and introduced required location columns (`restaurant_name`, `city`, `country`), `atmosphere_tags`, sub-ratings, and `list_id`. Introduced 1:N `food_items` child table and collaborative `list_collaborators` junction table.
+- Added custom migration `0002_add_collab_id.sql` to dynamically update database schema for list collaborators to include a uuid primary key `id` aligning it with drizzle models.
+- Re-architected Taste Entries service to support nested creation/updating of food items, mapping of sub-ratings, and linking with lists.
+- Re-architected Lists service to manage collaborators and allow contributors/editors to add/remove/reorder list items while restricting collaborator management to list owners.
+- Refactored Feed service to aggregate taste entries from the user themselves, their friends (mutual followers) with public/friends visibility, and other followed users with public visibility.
+- Implemented Fastify v5 request path rewriting in test mode using the native `rewriteUrl` option rather than hooks to guarantee that routes are correctly routed before matching.
+- Adjusted paginated API endpoints in Entries, Social, and Feed routes to send the `PaginatedResponse` object directly to ensure tests and frontend clients receive correct top-level keys.
+- Successfully verified the entire test suite of 121 tests (100% green/passing).
+

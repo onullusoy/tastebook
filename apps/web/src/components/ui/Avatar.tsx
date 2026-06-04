@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 interface AvatarProps {
   src?: string | null;
@@ -16,11 +17,19 @@ export const Avatar = ({ src, username, size = "md", className = "" }: AvatarPro
     lg: "w-24 h-24 text-3xl",
   };
 
+  const dimensions = {
+    sm: 32,
+    md: 48,
+    lg: 96,
+  };
+
   if (src) {
     return (
-      <img
+      <Image
         src={src}
         alt={username}
+        width={dimensions[size]}
+        height={dimensions[size]}
         className={`rounded-full object-cover border border-warm-200 ${sizeClasses[size]} ${className}`}
       />
     );

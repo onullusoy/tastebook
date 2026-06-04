@@ -33,10 +33,10 @@ describe("Lists Module Integration Tests", () => {
       .insert(tasteEntries)
       .values({
         userId,
-        dishName: name,
-        restaurantName: "Place",
+        restaurantName: name,
         city: "City",
         country: "Country",
+        priceLevel: 3,
         rating: 5,
         visibility: "public",
       })

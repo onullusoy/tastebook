@@ -18,6 +18,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginRequest>({
     resolver: zodResolver(loginSchema),
@@ -31,7 +32,9 @@ export default function LoginPage() {
     setErrorMessage(null);
     login(data, {
       onSuccess: () => {
-        router.push("/feed");
+        setTimeout(() => {
+          router.push("/feed");
+        }, 0);
       },
       onError: (err: any) => {
         if (err.status === 401) {
@@ -70,6 +73,19 @@ export default function LoginPage() {
       <Button type="submit" isLoading={isPending} className="w-full mt-2">
         Sign In
       </Button>
+      {process.env.NODE_ENV === "development" && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            setValue("email", "alice@example.com");
+            setValue("password", "password123");
+          }}
+          className="w-full mt-2 py-2 text-xs font-semibold text-stone-500 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg transition-colors cursor-pointer"
+        >
+          ⚡ Dev Mode: Autofill Test Account
+        </button>
+      )}
       <div className="text-center text-sm text-stone-500 mt-2">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="text-primary-500 font-semibold hover:underline">

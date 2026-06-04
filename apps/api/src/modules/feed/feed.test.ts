@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, truncateTables, createTestUserWithAuth } from "../../../test/helpers/setup";
-import { tasteEntries, follows, entryMedia } from "@tastebook/db";
+import { tasteEntries, follows, entryMedia, foodItems } from "@tastebook/db";
 import { eq } from "drizzle-orm";
 
 describe("Feed Module Integration Tests", () => {
@@ -20,20 +20,30 @@ describe("Feed Module Integration Tests", () => {
     await app.close();
   });
 
-  async function createEntry(userId: string, data: Partial<typeof tasteEntries.$inferInsert>) {
+  async function createEntry(userId: string, data: Partial<typeof tasteEntries.$inferInsert> & { foodName?: string }) {
     const [inserted] = await app.db
       .insert(tasteEntries)
       .values({
         userId,
-        dishName: data.dishName ?? "Dish",
         restaurantName: data.restaurantName ?? "Restaurant",
         city: data.city ?? "City",
         country: data.country ?? "Country",
+        priceLevel: data.priceLevel ?? 3,
         rating: data.rating ?? 5,
         visibility: data.visibility ?? "public",
+        atmosphereTags: data.atmosphereTags ?? [],
         createdAt: data.createdAt ?? new Date(),
       })
       .returning();
+
+    // Create a food item for the entry
+    const dishName = data.foodName ?? "Dish";
+    await app.db.insert(foodItems).values({
+      entryId: inserted.id,
+      name: dishName,
+      orderIndex: 0,
+    });
+
     return inserted;
   }
 
@@ -53,8 +63,8 @@ describe("Feed Module Integration Tests", () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
 
-    await createEntry(bob.user.id, { dishName: "Public Pasta", visibility: "public" });
-    await createEntry(bob.user.id, { dishName: "Private Pasta", visibility: "private" });
+    await createEntry(bob.user.id, { foodName: "Public Pasta", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Private Pasta", visibility: "private" });
 
     const res = await app.inject({
       method: "GET",
@@ -65,7 +75,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Public Pasta");
+    expect(body.data[0].food_items[0].name).toBe("Public Pasta");
   });
 
   it("3. GET /feed - user follows somebody and receives own entries -> 200", async () => {
@@ -73,7 +83,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
 
     await establishFollow(alice.user.id, bob.user.id);
-    await createEntry(alice.user.id, { dishName: "Own Burger", visibility: "private" });
+    await createEntry(alice.user.id, { foodName: "Own Burger", visibility: "private" });
 
     const res = await app.inject({
       method: "GET",
@@ -84,7 +94,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Own Burger");
+    expect(body.data[0].food_items[0].name).toBe("Own Burger");
   });
 
   it("4. GET /feed - receives public entries from followed users", async () => {
@@ -92,7 +102,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
 
     await establishFollow(alice.user.id, bob.user.id);
-    await createEntry(bob.user.id, { dishName: "Bob Public", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Bob Public", visibility: "public" });
 
     const res = await app.inject({
       method: "GET",
@@ -103,7 +113,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Bob Public");
+    expect(body.data[0].food_items[0].name).toBe("Bob Public");
   });
 
   it("5. GET /feed - receives friends entries from followed mutual friends", async () => {
@@ -113,7 +123,7 @@ describe("Feed Module Integration Tests", () => {
     await establishFollow(alice.user.id, bob.user.id);
     await establishFollow(bob.user.id, alice.user.id);
 
-    await createEntry(bob.user.id, { dishName: "Bob Friends Only", visibility: "friends" });
+    await createEntry(bob.user.id, { foodName: "Bob Friends Only", visibility: "friends" });
 
     const res = await app.inject({
       method: "GET",
@@ -124,7 +134,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Bob Friends Only");
+    expect(body.data[0].food_items[0].name).toBe("Bob Friends Only");
   });
 
   it("6. GET /feed - does NOT receive friends entries from non-mutual follow", async () => {
@@ -133,7 +143,7 @@ describe("Feed Module Integration Tests", () => {
 
     await establishFollow(alice.user.id, bob.user.id);
 
-    await createEntry(bob.user.id, { dishName: "Bob Friends Only", visibility: "friends" });
+    await createEntry(bob.user.id, { foodName: "Bob Friends Only", visibility: "friends" });
 
     const res = await app.inject({
       method: "GET",
@@ -153,7 +163,7 @@ describe("Feed Module Integration Tests", () => {
     await establishFollow(alice.user.id, bob.user.id);
     await establishFollow(bob.user.id, alice.user.id);
 
-    await createEntry(bob.user.id, { dishName: "Bob Private", visibility: "private" });
+    await createEntry(bob.user.id, { foodName: "Bob Private", visibility: "private" });
 
     const res = await app.inject({
       method: "GET",
@@ -171,7 +181,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     await establishFollow(alice.user.id, bob.user.id);
 
-    await createEntry(alice.user.id, { dishName: "My Secret", visibility: "private" });
+    await createEntry(alice.user.id, { foodName: "My Secret", visibility: "private" });
 
     const res = await app.inject({
       method: "GET",
@@ -182,7 +192,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("My Secret");
+    expect(body.data[0].food_items[0].name).toBe("My Secret");
   });
 
   it("9. GET /feed - receives own friends entries", async () => {
@@ -190,7 +200,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     await establishFollow(alice.user.id, bob.user.id);
 
-    await createEntry(alice.user.id, { dishName: "My Friends Info", visibility: "friends" });
+    await createEntry(alice.user.id, { foodName: "My Friends Info", visibility: "friends" });
 
     const res = await app.inject({
       method: "GET",
@@ -201,7 +211,7 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("My Friends Info");
+    expect(body.data[0].food_items[0].name).toBe("My Friends Info");
   });
 
   it("10. GET /feed - returns cached result on duplicate call", async () => {
@@ -209,7 +219,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     await establishFollow(alice.user.id, bob.user.id);
 
-    await createEntry(bob.user.id, { dishName: "Delicious Soup", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Delicious Soup", visibility: "public" });
 
     const firstRes = await app.inject({
       method: "GET",
@@ -218,7 +228,7 @@ describe("Feed Module Integration Tests", () => {
     });
     expect(firstRes.statusCode).toBe(200);
 
-    await createEntry(bob.user.id, { dishName: "Sneaked In", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Sneaked In", visibility: "public" });
 
     const secondRes = await app.inject({
       method: "GET",
@@ -228,7 +238,7 @@ describe("Feed Module Integration Tests", () => {
     expect(secondRes.statusCode).toBe(200);
     const body = JSON.parse(secondRes.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Delicious Soup");
+    expect(body.data[0].food_items[0].name).toBe("Delicious Soup");
   });
 
   it("11. GET /feed - caches result by version key and invalidates on update", async () => {
@@ -236,7 +246,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     await establishFollow(alice.user.id, bob.user.id);
 
-    await createEntry(bob.user.id, { dishName: "Cached Item", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Cached Item", visibility: "public" });
 
     const firstRes = await app.inject({
       method: "GET",
@@ -245,7 +255,7 @@ describe("Feed Module Integration Tests", () => {
     });
     expect(firstRes.statusCode).toBe(200);
 
-    await createEntry(bob.user.id, { dishName: "New Fresh Item", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "New Fresh Item", visibility: "public" });
 
     await app.inject({
       method: "POST",
@@ -272,7 +282,7 @@ describe("Feed Module Integration Tests", () => {
     await establishFollow(alice.user.id, bob.user.id);
 
     for (let i = 1; i <= 5; i++) {
-      await createEntry(bob.user.id, { dishName: `Dish ${i}`, visibility: "public", createdAt: new Date(Date.now() + i * 1000) });
+      await createEntry(bob.user.id, { foodName: `Dish ${i}`, visibility: "public", createdAt: new Date(Date.now() + i * 1000) });
     }
 
     const res = await app.inject({
@@ -292,7 +302,7 @@ describe("Feed Module Integration Tests", () => {
     await establishFollow(alice.user.id, bob.user.id);
 
     for (let i = 1; i <= 5; i++) {
-      await createEntry(bob.user.id, { dishName: `Pasta ${i}`, visibility: "public", createdAt: new Date(Date.now() + i * 1000) });
+      await createEntry(bob.user.id, { foodName: `Pasta ${i}`, visibility: "public", createdAt: new Date(Date.now() + i * 1000) });
     }
 
     const firstRes = await app.inject({
@@ -328,7 +338,7 @@ describe("Feed Module Integration Tests", () => {
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     await establishFollow(alice.user.id, bob.user.id);
 
-    const entry = await createEntry(bob.user.id, { dishName: "Gourmet Pizza", visibility: "public" });
+    const entry = await createEntry(bob.user.id, { foodName: "Gourmet Pizza", visibility: "public" });
 
     await app.db.insert(entryMedia).values({
       entryId: entry.id,
@@ -347,14 +357,16 @@ describe("Feed Module Integration Tests", () => {
     const body = JSON.parse(res.body);
     expect(body.data[0].media.length).toBe(1);
     expect(body.data[0].media[0].mime_type).toBe("image/jpeg");
+    // Verify food_items are included in feed
+    expect(body.data[0].food_items.length).toBeGreaterThan(0);
   });
 
   it("16. GET /feed - public feed only returns public entries regardless of follow status", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
 
-    await createEntry(bob.user.id, { dishName: "Public Steak", visibility: "public" });
-    await createEntry(bob.user.id, { dishName: "Friends Steak", visibility: "friends" });
+    await createEntry(bob.user.id, { foodName: "Public Steak", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Friends Steak", visibility: "friends" });
 
     const res = await app.inject({
       method: "GET",
@@ -364,14 +376,14 @@ describe("Feed Module Integration Tests", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
-    expect(body.data[0].dish_name).toBe("Public Steak");
+    expect(body.data[0].food_items[0].name).toBe("Public Steak");
   });
 
   it("17. GET /feed - public feed caches response correctly with its own TTL", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
 
-    await createEntry(bob.user.id, { dishName: "Cache 1", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Cache 1", visibility: "public" });
 
     const firstRes = await app.inject({
       method: "GET",
@@ -380,7 +392,7 @@ describe("Feed Module Integration Tests", () => {
     });
     expect(firstRes.statusCode).toBe(200);
 
-    await createEntry(bob.user.id, { dishName: "Cache 2", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Cache 2", visibility: "public" });
 
     const secondRes = await app.inject({
       method: "GET",
@@ -398,9 +410,9 @@ describe("Feed Module Integration Tests", () => {
     await establishFollow(alice.user.id, bob.user.id);
 
     const now = Date.now();
-    const entry1 = await createEntry(bob.user.id, { dishName: "First", visibility: "public", createdAt: new Date(now) });
-    const entry2 = await createEntry(bob.user.id, { dishName: "Second", visibility: "public", createdAt: new Date(now + 5000) });
-    const entry3 = await createEntry(bob.user.id, { dishName: "Third", visibility: "public", createdAt: new Date(now + 10000) });
+    const entry1 = await createEntry(bob.user.id, { foodName: "First", visibility: "public", createdAt: new Date(now) });
+    const entry2 = await createEntry(bob.user.id, { foodName: "Second", visibility: "public", createdAt: new Date(now + 5000) });
+    const entry3 = await createEntry(bob.user.id, { foodName: "Third", visibility: "public", createdAt: new Date(now + 10000) });
 
     const res = await app.inject({
       method: "GET",
@@ -409,8 +421,50 @@ describe("Feed Module Integration Tests", () => {
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.data[0].dish_name).toBe("Third");
-    expect(body.data[1].dish_name).toBe("Second");
-    expect(body.data[2].dish_name).toBe("First");
+    expect(body.data[0].food_items[0].name).toBe("Third");
+    expect(body.data[1].food_items[0].name).toBe("Second");
+    expect(body.data[2].food_items[0].name).toBe("First");
+  });
+
+  it("19. GET /feed/city/:cityName - returns entries for target city scoped to public", async () => {
+    const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+    const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+
+    await createEntry(bob.user.id, { foodName: "Paris Public", city: "Paris", visibility: "public" });
+    await createEntry(bob.user.id, { foodName: "Paris Private", city: "Paris", visibility: "private" });
+    await createEntry(bob.user.id, { foodName: "London Public", city: "London", visibility: "public" });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/feed/city/Paris?scope=public`,
+      headers: alice.headers,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.length).toBe(1);
+    expect(body.data[0].food_items[0].name).toBe("Paris Public");
+    expect(body.data[0].city).toBe("Paris");
+  });
+
+  it("20. GET /feed/city/:cityName - returns entries for target city scoped to following", async () => {
+    const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+    const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+    const charlie = await createTestUserWithAuth(app, { username: "charlie", email: "charlie@example.com" });
+
+    await establishFollow(alice.user.id, bob.user.id);
+
+    await createEntry(bob.user.id, { foodName: "Bob Paris Public", city: "Paris", visibility: "public" });
+    await createEntry(charlie.user.id, { foodName: "Charlie Paris Public", city: "Paris", visibility: "public" });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/feed/city/Paris?scope=following`,
+      headers: alice.headers,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.length).toBe(1);
+    expect(body.data[0].food_items[0].name).toBe("Bob Paris Public");
   });
 });
+

@@ -14,9 +14,16 @@ export default function MainLayout({
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
 
-  const navItems = [
+  const sidebarNavItems = [
     { label: "Feed", path: "/feed", icon: "🏠" },
-    { label: "New Entry", path: "/entries/new", icon: "＋" },
+    { label: "Search", path: "/search", icon: "🔍" },
+    { label: "Lists", path: "/lists", icon: "📋" },
+    { label: "Profile", path: "/profile", icon: "👤" },
+  ];
+
+  const bottomNavItems = [
+    { label: "Feed", path: "/feed", icon: "🏠" },
+    { label: "Search", path: "/search", icon: "🔍" },
     { label: "Lists", path: "/lists", icon: "📋" },
     { label: "Profile", path: "/profile", icon: "👤" },
   ];
@@ -31,7 +38,7 @@ export default function MainLayout({
               <span>Tastebook</span>
             </div>
             <nav className="flex flex-col gap-2">
-              {navItems.map((item) => {
+              {sidebarNavItems.map((item) => {
                 const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
                 return (
                   <Link
@@ -49,6 +56,17 @@ export default function MainLayout({
                 );
               })}
             </nav>
+            {pathname !== "/entries/new" && (
+              <div className="px-2 mt-2">
+                <Link
+                  href="/entries/new"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-xl shadow-sm transition-colors text-center"
+                >
+                  <span>＋</span>
+                  <span>New Entry</span>
+                </Link>
+              </div>
+            )}
           </div>
           {user && (
             <div className="flex flex-col gap-4 border-t border-warm-200 pt-4">
@@ -95,8 +113,19 @@ export default function MainLayout({
             {children}
           </main>
 
+          {/* Mobile FAB */}
+          {pathname !== "/entries/new" && !pathname.startsWith("/restaurants/") && !pathname.startsWith("/city/") && (
+            <Link
+              href="/entries/new"
+              className="md:hidden fixed bottom-20 right-4 z-20 bg-primary-500 hover:bg-primary-600 active:scale-95 text-white shadow-lg h-14 w-14 rounded-full flex items-center justify-center transition-all duration-200"
+              aria-label="New Entry"
+            >
+              <span className="text-2xl font-bold">＋</span>
+            </Link>
+          )}
+
           <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-warm-200 flex items-center justify-around px-2 z-10 shadow-lg">
-            {navItems.map((item) => {
+            {bottomNavItems.map((item) => {
               const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
               return (
                 <Link

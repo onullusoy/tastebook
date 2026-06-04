@@ -10,7 +10,7 @@ export function errorHandler(
   const log = request.log;
 
   if (error instanceof ZodError) {
-    log.warn({ err: error }, "Validation Error");
+    log.warn({ validationErrors: error.errors }, "Validation Error");
     return reply.status(422).send({
       error: {
         code: "VALIDATION_ERROR",
@@ -20,7 +20,11 @@ export function errorHandler(
   }
 
   if (error instanceof AppError) {
-    log.warn({ err: error }, `App Error [${error.code}]: ${error.message}`);
+    if (error.statusCode >= 400 && error.statusCode < 500) {
+      log.warn({ code: error.code, message: error.message }, `App Client Error [${error.code}]: ${error.message}`);
+    } else {
+      log.warn({ err: error }, `App Server Error [${error.code}]: ${error.message}`);
+    }
     return reply.status(error.statusCode).send({
       error: {
         code: error.code,
@@ -49,6 +53,9 @@ export function errorHandler(
     });
   }
 
+  if (process.env.NODE_ENV === "test") {
+    console.error("Unhandled Internal Server Error:", error);
+  }
   log.error({ err: error }, "Unhandled Internal Server Error");
   return reply.status(500).send({
     error: {

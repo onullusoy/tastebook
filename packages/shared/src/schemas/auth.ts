@@ -5,9 +5,20 @@ export const registerSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
 });
+
+export const registerFormSchema = registerSchema
+  .extend({
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 export type RegisterRequest = z.infer<typeof registerSchema>;
+export type RegisterFormRequest = z.infer<typeof registerFormSchema>;
 export type LoginRequest = z.infer<typeof loginSchema>;

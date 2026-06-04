@@ -15,7 +15,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     reply.setCookie("refreshToken", refreshToken, {
       httpOnly: true,
-      path: "/auth",
+      path: "/api/auth",
       sameSite: "lax",
       secure: false,
       maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -35,7 +35,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     reply.setCookie("refreshToken", refreshToken, {
       httpOnly: true,
-      path: "/auth",
+      path: "/api/auth",
       sameSite: "lax",
       secure: false,
       maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -59,7 +59,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     reply.setCookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      path: "/auth",
+      path: "/api/auth",
       sameSite: "lax",
       secure: false,
       maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -79,7 +79,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     reply.clearCookie("refreshToken", {
-      path: "/auth",
+      path: "/api/auth",
     });
 
     return reply.status(204).send();
