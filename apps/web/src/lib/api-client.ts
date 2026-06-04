@@ -46,6 +46,23 @@ class ApiClient {
     this.refreshSubscribers = [];
   }
 
+  private sanitizeUrlHost<T>(data: T): T {
+    if (typeof window === "undefined" || !data) return data;
+    const hostname = window.location.hostname;
+    if (!hostname || hostname === "localhost" || hostname === "127.0.0.1") {
+      return data;
+    }
+    try {
+      const str = JSON.stringify(data);
+      const sanitized = str
+        .replace(/https?:\/\/localhost:9000/g, `http://${hostname}:9000`)
+        .replace(/https?:\/\/127.0.0.1:9000/g, `http://${hostname}:9000`);
+      return JSON.parse(sanitized);
+    } catch (e) {
+      return data;
+    }
+  }
+
   async fetch<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
     
@@ -78,7 +95,7 @@ class ApiClient {
             throw new ApiError(retryResponse.status, errBody.message || "Request failed", errBody.errors);
           }
           const resJson = await retryResponse.json();
-          return resJson;
+          return this.sanitizeUrlHost(resJson);
         } catch (refreshError) {
           this.setAccessToken(null);
           if (
@@ -102,7 +119,7 @@ class ApiClient {
       }
 
       const resJson = await response.json();
-      return resJson;
+      return this.sanitizeUrlHost(resJson);
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
