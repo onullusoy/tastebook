@@ -60,7 +60,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post("/refresh", async (request, reply) => {
     const refreshToken = request.cookies.refreshToken;
     if (!refreshToken) {
-      throw new UnauthorizedError("No refresh token provided");
+      return reply.status(200).send({
+        data: {
+          access_token: null,
+        },
+      });
     }
 
     const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);

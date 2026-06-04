@@ -3,7 +3,7 @@ import { ApiError } from "./api-error";
 class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
-  private refreshSubscribers: ((token: string) => void)[] = [];
+  private refreshSubscribers: ((token: string | null) => void)[] = [];
   public readonly baseUrl = (() => {
     let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
     if (url && !url.endsWith("/api") && !url.endsWith("/api/")) {
@@ -37,11 +37,11 @@ class ApiClient {
     return this.accessToken;
   }
 
-  private subscribeTokenRefresh(cb: (token: string) => void) {
+  private subscribeTokenRefresh(cb: (token: string | null) => void) {
     this.refreshSubscribers.push(cb);
   }
 
-  private onRefreshed(token: string) {
+  private onRefreshed(token: string | null) {
     this.refreshSubscribers.forEach((cb) => cb(token));
     this.refreshSubscribers = [];
   }
@@ -92,6 +92,9 @@ class ApiClient {
       if (response.status === 401 && !path.includes("/auth/refresh") && !path.includes("/auth/login")) {
         try {
           const newToken = await this.refreshToken();
+          if (!newToken) {
+            throw new ApiError(401, "Unauthorized");
+          }
           headers.set("Authorization", `Bearer ${newToken}`);
           const retryResponse = await fetch(url, { ...config, headers });
           if (!retryResponse.ok) {
@@ -104,6 +107,7 @@ class ApiClient {
           this.setAccessToken(null);
           if (
             typeof window !== "undefined" &&
+            !path.includes("/auth/me") &&
             !window.location.pathname.startsWith("/login") &&
             !window.location.pathname.startsWith("/register")
           ) {
@@ -132,7 +136,7 @@ class ApiClient {
     }
   }
 
-  private async refreshToken(): Promise<string> {
+  public async refreshToken(): Promise<string | null> {
     if (this.isRefreshing) {
       return new Promise((resolve) => {
         this.subscribeTokenRefresh((token) => {
@@ -155,20 +159,23 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to refresh token");
+        this.onRefreshed(null);
+        return null;
       }
 
       const res = await response.json();
       const token = res.data.access_token;
       if (!token) {
-        throw new Error("No token returned in refresh response");
+        this.onRefreshed(null);
+        return null;
       }
 
       this.setAccessToken(token);
       this.onRefreshed(token);
       return token;
     } catch (error) {
-      throw error;
+      this.onRefreshed(null);
+      return null;
     } finally {
       this.isRefreshing = false;
     }

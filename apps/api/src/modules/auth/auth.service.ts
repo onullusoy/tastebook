@@ -10,7 +10,7 @@ export class AuthService {
   constructor(
     private db: ReturnType<typeof createDb>,
     private jwt: { sign: (payload: any, options?: any) => string }
-  ) {}
+  ) { }
 
   async register(data: RegisterRequest): Promise<{ user: UserResponse; accessToken: string; refreshToken: string }> {
     const existing = await this.db.query.users.findFirst({
@@ -67,7 +67,7 @@ export class AuthService {
 
     const valid = await argon2.verify(user.passwordHash, data.password);
     if (!valid) {
-      throw new UnauthorizedError("Invalid email or password");
+      throw new UnauthorizedError("password or mail is wrong");
     }
 
     const { accessToken, refreshToken } = await this.generateTokens(user.id);
