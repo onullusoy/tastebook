@@ -1,6 +1,7 @@
 import React from "react";
 import { Inter } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body className="bg-warm-50 text-stone-800 antialiased min-h-screen">
         <Providers>{children}</Providers>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
