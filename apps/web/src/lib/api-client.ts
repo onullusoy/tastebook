@@ -72,6 +72,7 @@ class ApiClient {
     
     const headers = new Headers(options.headers);
     headers.set("Bypass-Tunnel-Reminder", "true");
+    headers.set("ngrok-skip-browser-warning", "true");
     if (this.accessToken) {
       headers.set("Authorization", `Bearer ${this.accessToken}`);
     }
@@ -154,6 +155,7 @@ class ApiClient {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
         },
         body: "{}",
       });
