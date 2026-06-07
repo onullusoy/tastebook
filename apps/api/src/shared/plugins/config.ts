@@ -1,5 +1,24 @@
 import fp from "fastify-plugin";
 import { z } from "zod";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Dynamically load environment variables in order (root -> local -> local overrides)
+const envFiles = [
+  resolve(process.cwd(), "../../.env"),
+  resolve(process.cwd(), ".env"),
+  resolve(process.cwd(), ".env.local"),
+];
+
+for (const file of envFiles) {
+  if (existsSync(file)) {
+    try {
+      process.loadEnvFile(file);
+    } catch (e) {
+      // Ignore missing or malformed file errors
+    }
+  }
+}
 
 const configSchema = z.object({
   DATABASE_URL: z.string().url(),

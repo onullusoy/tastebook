@@ -31,7 +31,10 @@ export default fp(async (fastify) => {
         Policy: JSON.stringify(policy),
       }));
     } else {
-      throw headErr;
+      fastify.log.warn(`Could not connect to MinIO/S3 on startup: ${headErr.message || headErr.name}`);
+      if (process.env.NODE_ENV === "production") {
+        throw headErr;
+      }
     }
   }
 
