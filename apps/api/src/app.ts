@@ -57,7 +57,7 @@ export async function buildApp() {
       cb(null, false);
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "Bypass-Tunnel-Reminder"],
+    allowedHeaders: ["Content-Type", "Authorization", "Bypass-Tunnel-Reminder", "ngrok-skip-browser-warning"],
   });
   await app.register(cookie);
   await app.register(jwt, {
