@@ -11,7 +11,7 @@ import { useEntryCounters, useToggleLike, useComments, useAddComment, useDeleteC
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserLists, useAddToList } from "../../hooks/use-lists";
 import { useToastStore } from "../../stores/toast-store";
-import { EllipsisVertical } from "lucide-react";
+import { EllipsisVertical, ArrowLeft } from "lucide-react";
 import { resolveMediaUrl } from "../../lib/media-utils";
 
 interface EntryCardProps {
@@ -21,9 +21,10 @@ interface EntryCardProps {
   isOwner?: boolean;
   onImageClick?: (url: string) => void;
   uncropped?: boolean;
+  onBack?: () => void;
 }
 
-export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, uncropped }: EntryCardProps) => {
+export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, uncropped, onBack }: EntryCardProps) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,10 +108,24 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
   return (
     <div className="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
       <div className="p-4 flex items-center justify-between">
-        <Link
-          href={`/profile/${entry.user.id}`}
-          className="flex items-center gap-3 group"
-        >
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onBack();
+              }}
+              className="p-1.5 text-stone-500 hover:text-stone-850 hover:bg-stone-100 rounded-full transition-colors cursor-pointer flex items-center justify-center -ml-1"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <Link
+            href={`/profile/${entry.user.id}`}
+            className="flex items-center gap-3 group"
+          >
           <Avatar
             src={entry.user.avatar_url}
             username={entry.user.username}
@@ -126,6 +141,7 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
             </span>
           </div>
         </Link>
+        </div>
         <div className="relative">
           <button
             onClick={(e) => {
@@ -423,7 +439,7 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
               </div>
             )}
             {entry.atmosphere_tags && entry.atmosphere_tags.length > 0 && (
-              <div className="flex flex-nowrap overflow-x-auto gap-1 mt-1 pb-1 md:flex-wrap md:overflow-visible scrollbar-none">
+              <div className="flex flex-nowrap overflow-x-auto gap-1 mt-1 pb-1 md:flex-wrap md:overflow-visible scrollbar-thin-horizontal">
                 {entry.atmosphere_tags.map((tag, i) => (
                   <span
                     key={i}

@@ -110,7 +110,7 @@ export function useEntryCounters(entryId: string, initialData?: CountersResponse
       return api.fetch<CountersResponse>(`/entries/${entryId}/counters`);
     },
     initialData,
-    refetchInterval: 10000, // Poll every 10 seconds
+    refetchInterval: 60000, // Poll every 60 seconds
     refetchIntervalInBackground: false,
     enabled: !!entryId,
   });

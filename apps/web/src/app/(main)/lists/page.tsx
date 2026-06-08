@@ -55,7 +55,7 @@ export default function ListsPage() {
             <Link
               key={list.id}
               href={`/lists/${list.id}`}
-              className="bg-white border border-warm-200 rounded-2xl p-6 hover:shadow-md transition-all flex flex-col justify-between group"
+              className="bg-white border border-warm-200 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out flex flex-col justify-between group"
             >
               <div>
                 <div className="flex items-center justify-between gap-4 mb-2">

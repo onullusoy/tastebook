@@ -19,23 +19,32 @@ export class MediaService {
       throw new ValidationError("File size exceeds 10MB limit.");
     }
 
-    const validMimes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validMimes.includes(mimeType)) {
+    const header = fileBuffer.subarray(0, 4).toString("hex").toUpperCase();
+    const isJpeg = header.startsWith("FFD8FF");
+    const isPng = header.startsWith("89504E47");
+    const isWebp = header.startsWith("52494646");
+
+    let detectedMime = mimeType.toLowerCase();
+
+    // Fallback to magic bytes if the client MIME type is generic or unknown
+    if (detectedMime === "application/octet-stream" || !detectedMime.startsWith("image/")) {
+      if (isJpeg) detectedMime = "image/jpeg";
+      else if (isPng) detectedMime = "image/png";
+      else if (isWebp) detectedMime = "image/webp";
+    }
+
+    const validMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validMimes.includes(detectedMime)) {
       throw new ValidationError("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
     }
 
-    const header = fileBuffer.subarray(0, 4);
-    const isJpeg = header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF;
-    const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
-    const isWebp = header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46;
-
-    if (mimeType === "image/jpeg" && !isJpeg) {
+    if ((detectedMime === "image/jpeg" || detectedMime === "image/jpg") && !isJpeg) {
       throw new ValidationError("Magic byte validation failed for JPEG.");
     }
-    if (mimeType === "image/png" && !isPng) {
+    if (detectedMime === "image/png" && !isPng) {
       throw new ValidationError("Magic byte validation failed for PNG.");
     }
-    if (mimeType === "image/webp" && !isWebp) {
+    if (detectedMime === "image/webp" && !isWebp) {
       throw new ValidationError("Magic byte validation failed for WebP.");
     }
 

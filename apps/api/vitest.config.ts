@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, defaultExclude } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -8,5 +8,6 @@ export default defineConfig({
     hookTimeout: 10000,
     fileParallelism: false,
     maxWorkers: 1,
+    exclude: [...defaultExclude, "**/dist/**"],
   },
 });

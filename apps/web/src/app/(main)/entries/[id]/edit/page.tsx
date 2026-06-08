@@ -291,7 +291,7 @@ export default function EditEntryPage() {
             name="atmosphere_tags"
             control={control}
             render={({ field }) => (
-              <div className="flex flex-wrap gap-2 pb-2">
+              <div className="flex overflow-x-auto md:flex-wrap gap-2 pb-2 -mx-6 px-6 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {ATMOSPHERE_OPTIONS.map((tag) => {
                   const isSelected = field.value.includes(tag);
                   return (

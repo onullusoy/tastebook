@@ -142,15 +142,24 @@ export class UsersService {
       throw new ValidationError("File size exceeds 5MB limit.");
     }
 
-    const validMimes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validMimes.includes(mimeType)) {
-      throw new ValidationError("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
-    }
-
     const header = fileBuffer.subarray(0, 4).toString("hex").toUpperCase();
     const isJpeg = header.startsWith("FFD8FF");
     const isPng = header.startsWith("89504E47");
     const isWebp = header.startsWith("52494646");
+
+    let detectedMime = mimeType.toLowerCase();
+
+    // Fallback to magic bytes if the client MIME type is generic or unknown
+    if (detectedMime === "application/octet-stream" || !detectedMime.startsWith("image/")) {
+      if (isJpeg) detectedMime = "image/jpeg";
+      else if (isPng) detectedMime = "image/png";
+      else if (isWebp) detectedMime = "image/webp";
+    }
+
+    const validMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validMimes.includes(detectedMime)) {
+      throw new ValidationError("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
+    }
 
     if (!isJpeg && !isPng && !isWebp) {
       throw new ValidationError("Invalid file type. Magic byte validation failed.");
