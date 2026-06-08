@@ -135,6 +135,7 @@ Proje, üretim seviyesindeki testler ve kesintisiz (7/24) kullanılabilirlik iç
 
 * **Backend & Altyapı Katmanı (Ev Sunucusu):**
   - Fastify API sunucumuz ve diğer servisler (`postgres`, `redis`, `minio`), NVMe depolama (`/mnt/nvme_storage/projects/tastebook`) ile yerel bir Ubuntu Server (Lenovo Laptop) üzerinde Docker/Portainer altında 7/24 çalışmaktadır.
+  - **Veritabanı Yedekleme (Auto-Backup):** Portainer stack yapısına `prodrigestivill/postgres-backup-local:16-alpine` imajını kullanan `tastebook-postgres-backup` servisi entegre edilmiştir. `postgres` konteynerine bağımlı çalışan bu servis, her gün otomatik (`@daily`) yedek (dump) alır. Yedekler, son 7 günlük rolling retention (dönüşümlü saklama) kuralı ile sunucunun NVMe diskinde `/mnt/nvme_storage/docker_volumes/postgres_backups` konumunda saklanır.
   - Sunucu lid switch uyarısını görmezden gelecek şekilde (`HandleLidSwitch=ignore` in `logind.conf`) ve düşük güç tüketim modlarında (`powertop --auto-tune` / `powersave` governor) yapılandırılmıştır.
   - **CORS Gereksinimi:** Fastify API'deki CORS ayarlarında (`app.ts`), Vercel origin'lerinden gelen ve ngrok bypass uyarısını içeren preflight isteklerine izin vermek amacıyla `allowedHeaders` listesine `"ngrok-skip-browser-warning"` eklenmiştir.
 
