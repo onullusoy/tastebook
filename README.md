@@ -124,6 +124,24 @@ Tüm uygulamayı (API, Web Frontend, Postgres, Redis, MinIO) tek bir komutla ür
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
+### 4. Hibrit Bulut ve Canlı Test Mimarisi (Hybrid Setup)
+
+Proje, üretim seviyesindeki testler ve kesintisiz (7/24) kullanılabilirlik için bir Hibrit Bulut mimarisi üzerinde yapılandırılmıştır:
+
+* **Frontend Katmanı (Vercel):**
+  - Next.js arayüzü Vercel üzerinde üretim modunda canlıda çalışmaktadır.
+  - Vercel'deki frontend, backend ile `NEXT_PUBLIC_API_URL=https://crudeness-linguist-trickery.ngrok-free.dev` adresi üzerinden haberleşir.
+  - **Önemli Ngrok Bypass Konfigürasyonu:** Ngrok'un ücretsiz planlarındaki interstitial (tarayıcı uyarısı) ekranının API isteklerini engellemesini önlemek için, frontend client tarafında (`api-client.ts`) tüm dış isteklerin başlığına `ngrok-skip-browser-warning: true` eklenmiştir.
+
+* **Backend & Altyapı Katmanı (Ev Sunucusu):**
+  - Fastify API sunucumuz ve diğer servisler (`postgres`, `redis`, `minio`), NVMe depolama (`/mnt/nvme_storage/projects/tastebook`) ile yerel bir Ubuntu Server (Lenovo Laptop) üzerinde Docker/Portainer altında 7/24 çalışmaktadır.
+  - Sunucu lid switch uyarısını görmezden gelecek şekilde (`HandleLidSwitch=ignore` in `logind.conf`) ve düşük güç tüketim modlarında (`powertop --auto-tune` / `powersave` governor) yapılandırılmıştır.
+  - **CORS Gereksinimi:** Fastify API'deki CORS ayarlarında (`app.ts`), Vercel origin'lerinden gelen ve ngrok bypass uyarısını içeren preflight isteklerine izin vermek amacıyla `allowedHeaders` listesine `"ngrok-skip-browser-warning"` eklenmiştir.
+
+* **Networking & tmux Tünelcisi:**
+  - Yerel sunucudaki 3001 API portu, `tastebook-tuneller` isimli kalıcı bir `tmux` oturumunda çalışan `ngrok` tüneli ile dış dünyaya güvenli şekilde açılmıştır.
+  - Aynı oturum içinde `glances` ile sistem takibi ve `multitail -D -c -i <(docker logs -f tastebook-api)` ile gerçek zamanlı API log akışı izlenebilmektedir.
+
 ---
 
 ## 🔮 Gelecekte Neler Yapılabilir? (Post-MVP / Yol Haritası)

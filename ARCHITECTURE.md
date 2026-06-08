@@ -364,3 +364,10 @@ docker compose down -v # Tüm hacimleri (volume) siler
 docker compose up -d
 npx pnpm db:migrate
 ```
+
+### 4. Hibrit Canlı (Hybrid Cloud) Ortam ve Ngrok CORS Ayarları
+Uygulamayı Vercel'deki frontend üzerinden yerel (ev) sunucudaki API'ye bağlarken şu önemli noktalara dikkat edilmelidir:
+- **Tünel Tıkanıklığını Aşma (Browser Warning Bypass):** Ngrok'un ücretsiz tünellerinde ilk girişte gösterilen interstitial (tarayıcı uyarısı) sayfasını atlamak için, giden tüm isteklerde `ngrok-skip-browser-warning: true` header bilgisi gönderilmelidir. Bu yapılandırma `apps/web/src/lib/api-client.ts` içinde yer almaktadır.
+- **Backend CORS İzinleri:** API sunucusu CORS preflight isteklerinde bu özel başlığa izin vermelidir. Bu yüzden `apps/api/src/app.ts` dosyasındaki `@fastify/cors` konfigürasyonunda `allowedHeaders` dizisinde `"ngrok-skip-browser-warning"` mutlaka eklenmiş olmalıdır.
+- **tmux ile 7/24 Kesintisiz Tünel:** Ev sunucusundaki ngrok tünel bağlantısının SSH kesildiğinde kapanmaması için `tastebook-tuneller` isimli bir `tmux` oturumu kullanılarak arka planda tünel ve izleme servisleri (`glances`, `multitail`) sürekli çalışır halde tutulmaktadır.
+
