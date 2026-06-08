@@ -67,15 +67,20 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
+    try {
+      const { accessToken, refreshToken: newRefreshToken } = await authService.refresh(refreshToken);
 
-    reply.setCookie("refreshToken", newRefreshToken, getCookieOptions(request));
+      reply.setCookie("refreshToken", newRefreshToken, getCookieOptions(request));
 
-    return reply.status(200).send({
-      data: {
-        access_token: accessToken,
-      },
-    });
+      return reply.status(200).send({
+        data: {
+          access_token: accessToken,
+        },
+      });
+    } catch (error) {
+      reply.clearCookie("refreshToken", getClearCookieOptions(request));
+      throw error;
+    }
   });
 
   fastify.post("/logout", async (request, reply) => {

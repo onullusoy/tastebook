@@ -100,7 +100,8 @@ class ApiClient {
           const retryResponse = await fetch(url, { ...config, headers });
           if (!retryResponse.ok) {
             const errBody = await retryResponse.json().catch(() => ({}));
-            throw new ApiError(retryResponse.status, errBody.message || "Request failed", errBody.errors);
+            const message = errBody.error?.message || errBody.message || "Request failed";
+            throw new ApiError(retryResponse.status, message, errBody.errors);
           }
           const resJson = await retryResponse.json();
           return this.sanitizeUrlHost(resJson);
@@ -120,7 +121,8 @@ class ApiClient {
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
-        throw new ApiError(response.status, errBody.message || "Request failed", errBody.errors);
+        const message = errBody.error?.message || errBody.message || "Request failed";
+        throw new ApiError(response.status, message, errBody.errors);
       }
 
       if (response.status === 204) {

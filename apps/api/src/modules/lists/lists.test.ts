@@ -87,13 +87,12 @@ describe("Lists Module Integration Tests", () => {
 
   it("4. POST /lists - limit 50 lists per user -> 422 (ValidationError)", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
-    for (let i = 0; i < 50; i++) {
-      await app.db.insert(lists).values({
-        userId: alice.user.id,
-        title: `List ${i}`,
-        visibility: "public",
-      });
-    }
+    const listsToInsert = Array.from({ length: 50 }, (_, i) => ({
+      userId: alice.user.id,
+      title: `List ${i}`,
+      visibility: "public" as const,
+    }));
+    await app.db.insert(lists).values(listsToInsert);
 
     const res = await app.inject({
       method: "POST",

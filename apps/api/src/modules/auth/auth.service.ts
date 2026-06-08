@@ -1,5 +1,5 @@
 import { createDb, users, refreshTokens } from "@tastebook/db";
-import { eq, or } from "drizzle-orm";
+import { eq, or, lt } from "drizzle-orm";
 import argon2 from "argon2";
 import { createHash, randomBytes } from "node:crypto";
 import { ConflictError, UnauthorizedError } from "../../shared/errors";
@@ -67,7 +67,7 @@ export class AuthService {
 
     const valid = await argon2.verify(user.passwordHash, data.password);
     if (!valid) {
-      throw new UnauthorizedError("password or mail is wrong");
+      throw new UnauthorizedError("Invalid email or password");
     }
 
     const { accessToken, refreshToken } = await this.generateTokens(user.id);
@@ -116,6 +116,13 @@ export class AuthService {
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
+
+    // Clean up expired tokens to prevent accumulation/bloat in DB
+    try {
+      await this.db.delete(refreshTokens).where(lt(refreshTokens.expiresAt, new Date()));
+    } catch (e) {
+      // Don't block token generation if cleanup fails
+    }
 
     await this.db.insert(refreshTokens).values({
       userId,

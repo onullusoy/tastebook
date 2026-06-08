@@ -4,10 +4,19 @@ import { sql } from "drizzle-orm";
 import type { RegisterRequest } from "@tastebook/shared/schemas/auth";
 import fs from "node:fs";
 import path from "node:path";
+import { vi } from "vitest";
+
+vi.mock("argon2", () => ({
+  default: {
+    hash: async (password: string) => `mocked_hash_${password}`,
+    verify: async (hash: string, password: string) => hash === `mocked_hash_${password}`,
+  },
+}));
 
 try {
-  const envTestPath = path.resolve(process.cwd(), "../../.env.test");
-  const envPath = fs.existsSync(envTestPath) ? envTestPath : path.resolve(process.cwd(), "../../.env");
+  const envTestPath = path.resolve(__dirname, "../../../../.env.test");
+  const envDevPath = path.resolve(__dirname, "../../../../.env");
+  const envPath = fs.existsSync(envTestPath) ? envTestPath : envDevPath;
   if (fs.existsSync(envPath)) {
     const envConfig = fs.readFileSync(envPath, "utf-8");
     for (const line of envConfig.split("\n")) {
@@ -18,8 +27,7 @@ try {
         if (value.startsWith('"') && value.endsWith('"')) {
           value = value.substring(1, value.length - 1);
         }
-        // For testing setup, we want env.test variables to take precedence
-        if (fs.existsSync(envTestPath)) {
+        if (envPath === envTestPath) {
           process.env[key] = value;
         } else if (!process.env[key]) {
           process.env[key] = value;
@@ -59,9 +67,7 @@ export async function truncateTables(db: any) {
     "taste_entries",
     "users",
   ];
-  for (const t of tables) {
-    await db.execute(sql.raw(`TRUNCATE TABLE ${t} CASCADE`));
-  }
+  await db.execute(sql.raw(`TRUNCATE TABLE ${tables.join(", ")} CASCADE`));
 }
 
 export async function createTestUser(

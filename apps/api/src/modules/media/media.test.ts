@@ -36,13 +36,29 @@ describe("Media Upload Integration Tests", () => {
     expect(res.body.data.mime_type).toBe("image/webp");
     expect(res.body.data.order_index).toBe(0);
 
-    const getRes = await request(app.server).get(`/media/upload`).set("Authorization", alice.headers.Authorization);
-    const downloadRes = await fetch(res.body.data.url);
-    expect(downloadRes.status).toBe(200);
-    const buf = Buffer.from(await downloadRes.arrayBuffer());
+    // Use app.inject() instead of fetch() since test app doesn't listen on a TCP port
+    const mediaUrl = new URL(res.body.data.url);
+    const downloadRes = await app.inject({
+      method: "GET",
+      url: mediaUrl.pathname.replace(/^\/api/, ""),
+    });
+    expect(downloadRes.statusCode).toBe(200);
+    const buf = Buffer.from(downloadRes.rawPayload);
     // WebP files start with "RIFF" and have "WEBP" at offset 8
     expect(buf.subarray(0, 4).toString()).toBe("RIFF");
     expect(buf.subarray(8, 12).toString()).toBe("WEBP");
+  });
+
+  it("POST /media/upload — valid JPG (image/jpg) → 201", async () => {
+    const alice = await createTestUserWithAuth(app);
+
+    const res = await request(app.server)
+      .post("/media/upload")
+      .set("Authorization", alice.headers.Authorization)
+      .attach("file", TINY_JPEG, { filename: "test.jpg", contentType: "image/jpg" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.mime_type).toBe("image/webp");
   });
 
   it("POST /media/upload — valid PNG → 201", async () => {
@@ -126,9 +142,14 @@ describe("Media Upload Integration Tests", () => {
     expect(res.status).toBe(201);
     const fileUrl = res.body.data.url;
 
-    const downloadRes = await fetch(fileUrl);
-    expect(downloadRes.status).toBe(200);
-    const downloadedBuf = Buffer.from(await downloadRes.arrayBuffer());
+    // Use app.inject() instead of fetch() since test app doesn't listen on a TCP port
+    const mediaUrl = new URL(fileUrl);
+    const downloadRes = await app.inject({
+      method: "GET",
+      url: mediaUrl.pathname.replace(/^\/api/, ""),
+    });
+    expect(downloadRes.statusCode).toBe(200);
+    const downloadedBuf = Buffer.from(downloadRes.rawPayload);
     expect(downloadedBuf.subarray(0, 4).toString()).toBe("RIFF");
     expect(downloadedBuf.subarray(8, 12).toString()).toBe("WEBP");
   });
