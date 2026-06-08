@@ -9,6 +9,7 @@ import { registerFormSchema, RegisterFormRequest } from "@tastebook/shared/schem
 import { useRegister } from "../../../hooks/use-auth";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
+import { Eye, EyeOff } from "lucide-react";
 
 type RegisterFormInput = RegisterFormRequest;
 
@@ -16,6 +17,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { mutate: registerUser, isPending } = useRegister();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -88,15 +91,25 @@ export default function RegisterPage() {
       />
       <Input
         label="Password"
-        type="password"
+        type={showPassword ? "text" : "password"}
         placeholder="••••••••"
         error={errors.password?.message}
         disabled={isPending}
         {...register("password")}
+        suffix={
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="text-stone-400 hover:text-stone-650 transition-colors focus:outline-none flex items-center justify-center p-1"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        }
       />
       <Input
         label="Confirm Password"
-        type="password"
+        type={showConfirmPassword ? "text" : "password"}
         placeholder="••••••••"
         error={
           errors.confirmPassword?.message ||
@@ -106,6 +119,16 @@ export default function RegisterPage() {
         }
         disabled={isPending}
         {...register("confirmPassword")}
+        suffix={
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="text-stone-400 hover:text-stone-650 transition-colors focus:outline-none flex items-center justify-center p-1"
+            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+          >
+            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        }
       />
       <Button type="submit" isLoading={isPending} className="w-full mt-2">
         Create Account

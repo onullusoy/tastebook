@@ -114,13 +114,10 @@ export default function EditEntryPage() {
   const onSubmit = async (data: EntryFormValues) => {
     try {
       const validFoodItems = data.food_items
-        .filter((fi) => fi.name.trim().length > 0)
-        .map((fi) => ({ name: fi.name.trim(), notes: fi.notes?.trim() || undefined }));
-
-      if (validFoodItems.length === 0) {
-        addToast("At least one food item is required", "error");
-        return;
-      }
+        ? data.food_items
+            .filter((fi) => fi && fi.name && fi.name.trim().length > 0)
+            .map((fi) => ({ name: fi.name.trim(), notes: fi.notes?.trim() || undefined }))
+        : [];
 
       await updateEntry.mutateAsync({
         restaurant_name: data.restaurant_name,
@@ -257,7 +254,7 @@ export default function EditEntryPage() {
             <div key={field.id} className="flex gap-2 items-start">
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <Input
-                  placeholder={`Dish ${index + 1} name *`}
+                  placeholder={`Dish ${index + 1} name (optional)`}
                   {...register(`food_items.${index}.name` as const)}
                 />
                 <Input
@@ -294,7 +291,7 @@ export default function EditEntryPage() {
             name="atmosphere_tags"
             control={control}
             render={({ field }) => (
-              <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2">
+              <div className="flex flex-wrap gap-2 pb-2">
                 {ATMOSPHERE_OPTIONS.map((tag) => {
                   const isSelected = field.value.includes(tag);
                   return (

@@ -5,6 +5,8 @@ import { useUploadMedia } from "../../hooks/use-entries";
 import { Spinner } from "../ui/Spinner";
 import { useToastStore } from "../../stores/toast-store";
 
+import { resolveMediaUrl } from "../../lib/media-utils";
+
 interface ImageUploadGridProps {
   value: string[];
   onChange: (value: string[]) => void;
@@ -81,9 +83,12 @@ export const ImageUploadGrid = ({ value, onChange }: ImageUploadGridProps) => {
                 className="relative aspect-square rounded-xl border border-warm-200 overflow-hidden bg-stone-50"
               >
                 <img
-                  src={item.url}
+                  src={resolveMediaUrl(item.url)}
                   alt={`Upload ${index}`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder-food.png";
+                  }}
                 />
                 {item.isUploading && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">

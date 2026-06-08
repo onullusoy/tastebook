@@ -3,10 +3,11 @@ import React, { forwardRef } from "react";
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  suffix?: React.ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className = "", ...props }, ref) => {
+  ({ label, error, className = "", suffix, ...props }, ref) => {
     return (
       <div className="flex flex-col gap-1 w-full">
         {label && (
@@ -14,13 +15,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <input
-          ref={ref}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-stone-400 text-stone-800 ${
-            error ? "border-red-500 bg-red-50" : "border-warm-200 bg-white"
-          } ${className}`}
-          {...props}
-        />
+        <div className="relative w-full flex items-center">
+          <input
+            ref={ref}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-stone-400 text-stone-800 ${
+              error ? "border-red-500 bg-red-50" : "border-warm-200 bg-white"
+            } ${suffix ? "pr-10" : ""} ${className}`}
+            {...props}
+          />
+          {suffix && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              {suffix}
+            </div>
+          )}
+        </div>
         {error && <span className="text-xs text-red-500">{error}</span>}
       </div>
     );

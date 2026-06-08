@@ -14,4 +14,4 @@ const start = async () => {
 };
 
 start();
-// Trigger watcher restart
+// Trigger watcher restart again

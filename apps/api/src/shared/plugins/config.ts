@@ -3,12 +3,19 @@ import { z } from "zod";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-// Dynamically load environment variables in order (root -> local -> local overrides)
-const envFiles = [
-  resolve(process.cwd(), "../../.env"),
-  resolve(process.cwd(), ".env"),
-  resolve(process.cwd(), ".env.local"),
-];
+const isTest = process.env.NODE_ENV === "test" || !!process.env.VITEST;
+
+// Dynamically load environment variables in order
+const envFiles = isTest
+  ? [
+      resolve(process.cwd(), "../../.env.test"),
+      resolve(process.cwd(), ".env.test"),
+    ]
+  : [
+      resolve(process.cwd(), "../../.env"),
+      resolve(process.cwd(), ".env"),
+      resolve(process.cwd(), ".env.local"),
+    ];
 
 for (const file of envFiles) {
   if (existsSync(file)) {

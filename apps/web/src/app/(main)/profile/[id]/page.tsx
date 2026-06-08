@@ -235,7 +235,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-black text-stone-900 tracking-tight">Journal Entries</h2>
         <FeedList
           entries={entries}
           isLoading={isEntriesLoading}

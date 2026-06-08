@@ -39,6 +39,9 @@ export const ImagePreviewModal = ({
           src={imageUrl}
           alt={altText}
           className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder-food.png";
+          }}
         />
       </div>
     </div>

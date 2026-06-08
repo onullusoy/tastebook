@@ -9,6 +9,7 @@ import { EntryCard } from "../../../../components/feed/EntryCard";
 import { Spinner } from "../../../../components/ui/Spinner";
 import { Button } from "../../../../components/ui/Button";
 import { ImagePreviewModal } from "../../../../components/entry/ImagePreviewModal";
+import { ArrowLeft } from "lucide-react";
 
 export default function EntryDetailsPage() {
   const params = useParams();
@@ -55,12 +56,15 @@ export default function EntryDetailsPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto flex flex-col gap-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()} className="cursor-pointer">
-          ← Back
-        </Button>
-      </div>
+    <div className="max-w-xl mx-auto flex flex-col gap-4">
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-1.5 text-stone-500 hover:text-stone-800 transition-colors text-sm font-semibold w-fit self-start py-1 px-2 hover:bg-warm-100 rounded-lg cursor-pointer"
+        aria-label="Go back"
+      >
+        <ArrowLeft size={16} />
+        <span>Back</span>
+      </button>
       <EntryCard
         entry={entry}
         onDelete={handleDelete}

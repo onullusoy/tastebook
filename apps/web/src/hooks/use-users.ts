@@ -48,6 +48,8 @@ export function useFollow() {
       queryClient.invalidateQueries({ queryKey: ["user-followers"] });
       queryClient.invalidateQueries({ queryKey: ["user-following"] });
       queryClient.invalidateQueries({ queryKey: ["user-friends"] });
+      queryClient.invalidateQueries({ queryKey: ["search"] });
+      queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
   });
 }
@@ -72,6 +74,8 @@ export function useUnfollow() {
       queryClient.invalidateQueries({ queryKey: ["user-followers"] });
       queryClient.invalidateQueries({ queryKey: ["user-following"] });
       queryClient.invalidateQueries({ queryKey: ["user-friends"] });
+      queryClient.invalidateQueries({ queryKey: ["search"] });
+      queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
   });
 }

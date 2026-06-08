@@ -1,6 +1,8 @@
 import React from "react";
 import Image from "next/image";
 
+import { resolveMediaUrl } from "../../lib/media-utils";
+
 interface AvatarProps {
   src?: string | null;
   username: string;
@@ -26,7 +28,7 @@ export const Avatar = ({ src, username, size = "md", className = "" }: AvatarPro
   if (src) {
     return (
       <Image
-        src={src}
+        src={resolveMediaUrl(src)}
         alt={username}
         width={dimensions[size]}
         height={dimensions[size]}

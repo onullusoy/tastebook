@@ -78,7 +78,12 @@ export async function buildApp() {
   await app.register(dbPlugin);
   await app.register(redisPlugin);
   await app.register(s3Plugin);
-  await app.register(adminPlugin);
+
+  await app.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+    },
+  });
 
   if (!app.hasRequestDecorator("cookies")) {
     await app.register(cookie);
@@ -87,11 +92,8 @@ export async function buildApp() {
   await app.register(jwt, {
     secret: app.config.JWT_SECRET,
   });
-  await app.register(multipart, {
-    limits: {
-      fileSize: 10 * 1024 * 1024,
-    },
-  });
+
+  await app.register(adminPlugin);
 
   app.setErrorHandler(errorHandler);
 

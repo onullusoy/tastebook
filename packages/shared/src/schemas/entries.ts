@@ -50,8 +50,8 @@ export const createEntrySchema = z.object({
   rating_service: subRating,
   rating_value: subRating,
 
-  // Food items (at least 1 required)
-  food_items: z.array(foodItemSchema).min(1).max(20),
+  // Food items (optional)
+  food_items: z.array(foodItemSchema).min(0).max(20).default([]),
 
   // Commentary
   notes: z.string().max(2000).optional(),
@@ -71,7 +71,7 @@ export const updateEntrySchema = createEntrySchema
   .omit({ media_ids: true, food_items: true })
   .extend({
     // food_items on update: provide full replacement array (optional)
-    food_items: z.array(foodItemSchema).min(1).max(20).optional(),
+    food_items: z.array(foodItemSchema).min(0).max(20).optional(),
   });
 
 export type CreateEntryRequest = z.infer<typeof createEntrySchema>;

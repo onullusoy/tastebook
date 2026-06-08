@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/auth-store";
 import { Spinner } from "../components/ui/Spinner";
 import { ToastProvider } from "../components/ui/Toast";
+import "../lib/console-log-service";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(

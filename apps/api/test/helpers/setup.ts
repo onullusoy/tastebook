@@ -6,7 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 try {
-  const envPath = path.resolve(process.cwd(), "../../.env");
+  const envTestPath = path.resolve(process.cwd(), "../../.env.test");
+  const envPath = fs.existsSync(envTestPath) ? envTestPath : path.resolve(process.cwd(), "../../.env");
   if (fs.existsSync(envPath)) {
     const envConfig = fs.readFileSync(envPath, "utf-8");
     for (const line of envConfig.split("\n")) {
@@ -17,7 +18,10 @@ try {
         if (value.startsWith('"') && value.endsWith('"')) {
           value = value.substring(1, value.length - 1);
         }
-        if (!process.env[key]) {
+        // For testing setup, we want env.test variables to take precedence
+        if (fs.existsSync(envTestPath)) {
+          process.env[key] = value;
+        } else if (!process.env[key]) {
           process.env[key] = value;
         }
       }
@@ -35,6 +39,15 @@ export async function createTestApp(): Promise<FastifyInstance> {
 }
 
 export async function truncateTables(db: any) {
+  const dbUrl = process.env.DATABASE_URL || "";
+  const isTestDb = dbUrl.toLowerCase().includes("test");
+  if (!isTestDb) {
+    throw new Error(
+      `DANGER: Attempted to run integration tests and truncate tables on a non-test database: "${dbUrl}".\n` +
+      `To protect your development and production data from being deleted, tests will only execute if the database name in DATABASE_URL contains "test" (e.g. "tastebook_test").`
+    );
+  }
+
   const tables = [
     "list_items",
     "list_collaborators",

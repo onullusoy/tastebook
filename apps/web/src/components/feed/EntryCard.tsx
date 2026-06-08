@@ -12,6 +12,7 @@ import { useAuthStore } from "../../stores/auth-store";
 import { useUserLists, useAddToList } from "../../hooks/use-lists";
 import { useToastStore } from "../../stores/toast-store";
 import { EllipsisVertical } from "lucide-react";
+import { resolveMediaUrl } from "../../lib/media-utils";
 
 interface EntryCardProps {
   entry: EntryResponse;
@@ -27,6 +28,11 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showListsSubmenu, setShowListsSubmenu] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [activeImageIndex, entry.id]);
 
   const { data: counters } = useEntryCounters(entry.id, {
     likes_count: entry.likes_count,
@@ -293,25 +299,27 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
         <div className={`relative w-full bg-stone-100 flex items-center justify-center ${uncropped ? "h-auto" : "aspect-video overflow-hidden"}`}>
           {onImageClick ? (
             <button
-              onClick={() => onImageClick(entry.media[activeImageIndex].url)}
+              onClick={() => onImageClick(resolveMediaUrl(entry.media[activeImageIndex].url))}
               className={`w-full ${uncropped ? "h-auto" : "h-full"} text-left relative focus:outline-none cursor-zoom-in`}
               aria-label="Zoom image"
             >
               {uncropped ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={entry.media[activeImageIndex].url}
+                  src={imageError ? "/placeholder-food.png" : resolveMediaUrl(entry.media[activeImageIndex].url)}
                   alt={entry.restaurant_name}
                   className="w-full h-auto max-h-[75vh] object-contain"
+                  onError={() => setImageError(true)}
                 />
               ) : (
                 <Image
-                  src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                  src={imageError ? "/placeholder-food.png" : resolveMediaUrl(entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url)}
                   alt={entry.restaurant_name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   priority={activeImageIndex === 0}
                   className="object-cover transition-all"
+                  onError={() => setImageError(true)}
                 />
               )}
             </button>
@@ -320,18 +328,20 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
               {uncropped ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={entry.media[activeImageIndex].url}
+                  src={imageError ? "/placeholder-food.png" : resolveMediaUrl(entry.media[activeImageIndex].url)}
                   alt={entry.restaurant_name}
                   className="w-full h-auto max-h-[75vh] object-contain"
+                  onError={() => setImageError(true)}
                 />
               ) : (
                 <Image
-                  src={entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url}
+                  src={imageError ? "/placeholder-food.png" : resolveMediaUrl(entry.media[activeImageIndex].thumbnail_url || entry.media[activeImageIndex].url)}
                   alt={entry.restaurant_name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   priority={activeImageIndex === 0}
                   className="object-cover transition-all"
+                  onError={() => setImageError(true)}
                 />
               )}
             </Link>
@@ -413,11 +423,11 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
               </div>
             )}
             {entry.atmosphere_tags && entry.atmosphere_tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-nowrap overflow-x-auto gap-1 mt-1 pb-1 md:flex-wrap md:overflow-visible scrollbar-none">
                 {entry.atmosphere_tags.map((tag, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-100"
+                    className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-100 flex-shrink-0"
                   >
                     {tag}
                   </span>

@@ -52,6 +52,7 @@ export class MediaService {
         .webp({ quality: 75 })
         .toBuffer();
     } catch (error) {
+      console.error("Image optimization error:", error);
       throw new ValidationError("Failed to optimize image.");
     }
 
