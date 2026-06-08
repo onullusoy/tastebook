@@ -34,6 +34,9 @@ const configSchema = z.object({
   API_HOST: z.string().default("::"),
   WEB_URL: z.string().url().default("http://localhost:3000"),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
+  ADMIN_EMAIL: z.string().email(),
+  ADMIN_PASSWORD: z.string().min(8),
+  ADMIN_COOKIE_PASSWORD: z.string().min(32).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

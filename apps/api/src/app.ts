@@ -19,6 +19,7 @@ import searchRoutes from "./modules/search/search.routes";
 import placesRoutes from "./modules/places/places.routes";
 import restaurantsRoutes from "./modules/restaurants/restaurants.routes";
 import citiesRoutes from "./modules/cities/cities.routes";
+import adminPlugin from "./shared/plugins/admin";
 
 export async function buildApp() {
   const app = Fastify({
@@ -33,6 +34,21 @@ export async function buildApp() {
       return url || "/";
     } : undefined,
   });
+
+  // Prevent duplicate plugin registrations (e.g. from AdminJS)
+  const registeredPlugins = new Set<string>();
+  const originalRegister = app.register;
+  (app as any).register = function (plugin: any, opts: any) {
+    const pluginName = plugin[Symbol.for("fastify.display-name")] || plugin.name;
+    if (pluginName && registeredPlugins.has(pluginName)) {
+      app.log.info(`Skipping duplicate registration of plugin: ${pluginName}`);
+      return this;
+    }
+    if (pluginName) {
+      registeredPlugins.add(pluginName);
+    }
+    return originalRegister.call(this, plugin, opts);
+  };
 
   await app.register(configPlugin);
 
@@ -59,7 +75,15 @@ export async function buildApp() {
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "Bypass-Tunnel-Reminder", "ngrok-skip-browser-warning"],
   });
-  await app.register(cookie);
+  await app.register(dbPlugin);
+  await app.register(redisPlugin);
+  await app.register(s3Plugin);
+  await app.register(adminPlugin);
+
+  if (!app.hasRequestDecorator("cookies")) {
+    await app.register(cookie);
+  }
+
   await app.register(jwt, {
     secret: app.config.JWT_SECRET,
   });
@@ -68,10 +92,6 @@ export async function buildApp() {
       fileSize: 10 * 1024 * 1024,
     },
   });
-
-  await app.register(dbPlugin);
-  await app.register(redisPlugin);
-  await app.register(s3Plugin);
 
   app.setErrorHandler(errorHandler);
 

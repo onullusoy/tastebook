@@ -365,10 +365,18 @@ docker compose up -d
 npx pnpm db:migrate
 ```
 
-### 4. Hibrit Canlı (Hybrid Cloud) Ortam ve Ngrok CORS Ayarları
+### 4. Hibrit Canlı (Hybrid Cloud) Altyapı ve Veri Güvenliği
 Uygulamayı Vercel'deki frontend üzerinden yerel (ev) sunucudaki API'ye bağlarken şu önemli noktalara dikkat edilmelidir:
-- **Tünel Tıkanıklığını Aşma (Browser Warning Bypass):** Ngrok'un ücretsiz tünellerinde ilk girişte gösterilen interstitial (tarayıcı uyarısı) sayfasını atlamak için, giden tüm isteklerde `ngrok-skip-browser-warning: true` header bilgisi gönderilmelidir. Bu yapılandırma `apps/web/src/lib/api-client.ts` içinde yer almaktadır.
-- **Backend CORS İzinleri:** API sunucusu CORS preflight isteklerinde bu özel başlığa izin vermelidir. Bu yüzden `apps/api/src/app.ts` dosyasındaki `@fastify/cors` konfigürasyonunda `allowedHeaders` dizisinde `"ngrok-skip-browser-warning"` mutlaka eklenmiş olmalıdır.
-- **tmux ile 7/24 Kesintisiz Tünel:** Ev sunucusundaki ngrok tünel bağlantısının SSH kesildiğinde kapanmaması için `tastebook-tuneller` isimli bir `tmux` oturumu kullanılarak arka planda tünel ve izleme servisleri (`glances`, `multitail`) sürekli çalışır halde tutulmaktadır.
-- **Otomatik Veritabanı Yedekleri:** Portainer stack'ine `prodrigestivill/postgres-backup-local:16-alpine` imajıyla `tastebook-postgres-backup` servisi entegre edilmiştir. Bu servis, `postgres` konteynerine bağımlı olarak günlük (`@daily`) yedekler alır ve NVMe diskindeki `/mnt/nvme_storage/docker_volumes/postgres_backups` yolunda son 7 günlük yedeği dönüşümlü (rolling retention) olarak saklar.
+- **Otomatik Veritabanı Yedekleri:** Portainer stack'ine `prodrigestivill/postgres-backup-local:16-alpine` imajıyla `tastebook-postgres-backup` servisi entegre edilmiştir. Bu servis, `postgres` konteynerine bağımlı olarak günlük (`@daily`) yedekler alır ve NVMe diskindeki `/mnt/nvme_storage/docker_volumes/postgres_backups` yolunda son 5 günlük yedeği dönüşümlü (rolling retention) olarak saklar.
+- **Kalıcı Veri Depolama (Named Volumes):** Portainer stack güncellemelerinde veri kaybını tamamen engellemek amacıyla `postgres`, `redis` ve `minio` servislerinde named docker volume'lar (`tastebook_postgres_data`, `tastebook_redis_data` ve `tastebook_minio_data`) kullanılır. Redis servisinde veri kayıplarını engellemek için AOF (Append Only File) mekanizması aktiftir (`redis-server --appendonly yes`).
+- **Güvenli Veritabanı Göçleri (Safe Migrations):** API sunucusu ayağa kalkarken verileri ezebilecek agresif şema senkronizasyonları (örn. drizzle-kit push) yerine, `pnpm --filter @tastebook/db migrate` komutu ile geriye dönük uyumlu SQL migration'ları güvenli bir şekilde çalıştırılır.
+
+### 5. AdminJS Yönetici Paneli (Admin Dashboard)
+Sistemin verilerini doğrudan yönetebilmek amacıyla **AdminJS** aracı backend uygulamamıza (`apps/api`) entegre edilmiştir:
+- **Erişim Yolu:** `/admin` adresi üzerinden erişilebilir.
+- **Kimlik Doğrulama (Form-based Auth):** Panelin yetkisiz erişime kapatılması için form tabanlı giriş ekranı yapılandırılmıştır. Oturum bilgileri tarayıcıda güvenli çerezler (`adminjs_session`) ile saklanır.
+- **Çevre Değişkenleri:** Giriş bilgileri `.env` dosyasındaki `ADMIN_EMAIL` ve `ADMIN_PASSWORD` değişkenleriyle tanımlanır. Oturum şifrelemesi için `ADMIN_COOKIE_PASSWORD` (en az 32 karakter) veya tescilli fallback olarak `JWT_SECRET` kullanılır.
+- **Veri Güvenliği ve Gizlilik:** Tablolardaki hassas veriler (örneğin kullanıcı şifre özetlerinin saklandığı `passwordHash` alanı) AdminJS kaynak tanımlarında `isVisible: false` olarak ayarlanarak panel arayüzünden tamamen gizlenmiş ve düzenleme dışı bırakılmıştır.
+- **Desteklenen Kaynaklar (CRUD):** `users`, `tasteEntries`, `restaurants`, `lists`, `entryComments`, `entryLikes`, `follows`, `listItems`, `listCollaborators`, `foodItems`, `entryMedia`, `commentLikes` ve `refreshTokens` tablolarının tamamı yönetici paneline kaydedilmiş olup tam okuma/yazma yetkisi sunar.
+
 

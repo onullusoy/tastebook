@@ -143,6 +143,19 @@ Proje, üretim seviyesindeki testler ve kesintisiz (7/24) kullanılabilirlik iç
   - Yerel sunucudaki 3001 API portu, `tastebook-tuneller` isimli kalıcı bir `tmux` oturumunda çalışan `ngrok` tüneli ile dış dünyaya güvenli şekilde açılmıştır.
   - Aynı oturum içinde `glances` ile sistem takibi ve `multitail -D -c -i <(docker logs -f tastebook-api)` ile gerçek zamanlı API log akışı izlenebilmektedir.
 
+### 5. AdminJS Yönetici Paneli (Admin Dashboard)
+
+Sistemdeki verileri (Kullanıcılar, Restoranlar, Değerlendirmeler, Listeler vb.) doğrudan yönetebilmek ve CRUD işlemlerini gerçekleştirebilmek amacıyla **AdminJS** aracı entegre edilmiştir.
+
+- **Erişim Yolu:** Sunucunun `/admin` yolu üzerinden erişilebilir (Örn: `http://localhost:3001/admin` veya canlı backend adresi üzerinden `/admin`).
+- **Kimlik Doğrulama:** Erişim, form tabanlı giriş ekranı ile korunmakta olup yetkisiz girişler engellenir. Oturum yönetimi güvenli çerezler (`adminjs_session`) yardımıyla sağlanır.
+- **Gerekli Çevre Değişkenleri:**
+  - `ADMIN_EMAIL`: Yönetici giriş e-postası (Örn: `admin@tastebook.app`)
+  - `ADMIN_PASSWORD`: Yönetici giriş şifresi (En az 8 karakter)
+  - `ADMIN_COOKIE_PASSWORD` (Opsiyonel): Çerez şifrelemesi için en az 32 karakterlik anahtar (Tanımlanmazsa `JWT_SECRET` kullanılır).
+- **Hassas Veri Maskeleme:** Kullanıcı şifre özetleri (`passwordHash`) gibi kritik veriler arayüzden tamamen gizlenmiştir (`isVisible: false`).
+
+
 ---
 
 ## 🔮 Gelecekte Neler Yapılabilir? (Post-MVP / Yol Haritası)

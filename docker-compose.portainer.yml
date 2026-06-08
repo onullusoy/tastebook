@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tastebook-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: onulls
+      POSTGRES_PASSWORD: tastebook_admin
+      POSTGRES_DB: tastebook
+    ports:
+      - "5432:5432"
+    volumes:
+      - tastebook_postgres_data:/var/lib/postgresql/data
+
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: tastebook-postgres-backup
+    restart: always
+    volumes:
+      - /mnt/nvme_storage/docker_volumes/postgres_backups:/backups
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_CLUSTER=true
+      - POSTGRES_USER=onulls
+      - POSTGRES_PASSWORD=tastebook_admin
+      - POSTGRES_DB=tastebook
+      - POSTGRES_EXTRA_OPTS=-Z6 --schema=public
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=5
+    depends_on:
+      - postgres
+      
+  redis:
+    image: redis:7-alpine
+    container_name: tastebook-redis
+    restart: always
+    ports:
+      - "9000:6379"
+    volumes:
+      - tastebook_redis_data:/data
+    command: redis-server --appendonly yes
+
+  minio:
+    image: minio/minio:latest
+    container_name: tastebook-minio
+    restart: always
+    ports:
+      - "9001:9001"
+      - "9002:9000"
+    environment:
+      MINIO_ROOT_USER: onulls
+      MINIO_ROOT_PASSWORD: tastebook_admin
+    volumes:
+      - tastebook_minio_data:/data
+    command: server /data --console-address ":9001"
+
+  api:
+    image: node:22-alpine
+    container_name: tastebook-api
+    restart: always
+    volumes:
+      - /mnt/nvme_storage/projects/tastebook:/app
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://onulls:tastebook_admin@postgres:5432/tastebook?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=onulls
+      - MINIO_SECRET_KEY=tastebook_admin
+    command: >
+      sh -c "
+      npm install -g pnpm tsx &&
+      cd /app &&
+      pnpm config set shamefully-hoist true &&
+      pnpm install --no-frozen-lockfile &&
+      pnpm --filter @tastebook/db migrate &&
+      cd /app/apps/api &&
+      tsx --env-file=../../.env --watch src/server.ts
+      "
+
+  web:
+    image: node:22-alpine
+    container_name: tastebook-web
+    restart: always
+    volumes:
+      - /mnt/nvme_storage/projects/tastebook:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=https://crudeness-linguist-trickery.ngrok-free.dev
+      - VITE_API_URL=https://crudeness-linguist-trickery.ngrok-free.dev
+    command: >
+      sh -c "
+      npm install -g pnpm &&
+      cd /app &&
+      pnpm config set shamefully-hoist true &&
+      pnpm install --no-frozen-lockfile &&
+      cd /app/apps/web &&
+      pnpm dev
+      "
+
+volumes:
+  tastebook_postgres_data:
+  tastebook_redis_data:
+  tastebook_minio_data:
