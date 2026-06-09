@@ -6,3 +6,4 @@ dist/
 .next/
 *.tsbuildinfo
 .turbo/
+.sisyphus/
