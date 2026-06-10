@@ -26,7 +26,10 @@ export function useCreateEntry() {
       return res.data;
     },
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["feed"] });
+      queryClient.removeQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
   });
@@ -44,7 +47,10 @@ export function useUpdateEntry(id: string) {
       return res.data;
     },
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["feed"] });
+      queryClient.removeQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["entry", id] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
@@ -75,8 +81,15 @@ export function useDeleteEntry() {
         method: "DELETE",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      const id = variables;
+      queryClient.removeQueries({ queryKey: ["feed"] });
+      queryClient.removeQueries({ queryKey: ["city-feed"] });
+      queryClient.removeQueries({ queryKey: ["entry", id] });
+      queryClient.removeQueries({ queryKey: ["entry-counters", id] });
+      queryClient.removeQueries({ queryKey: ["entry-comments", id] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
     },
   });
@@ -103,7 +116,7 @@ export interface Comment {
   };
 }
 
-export function useEntryCounters(entryId: string, initialData?: CountersResponse) {
+export function useEntryCounters(entryId: string, initialData?: CountersResponse, enabled = true) {
   return useQuery<CountersResponse>({
     queryKey: ["entry-counters", entryId],
     queryFn: async () => {
@@ -112,7 +125,7 @@ export function useEntryCounters(entryId: string, initialData?: CountersResponse
     initialData,
     refetchInterval: 60000, // Poll every 60 seconds
     refetchIntervalInBackground: false,
-    enabled: !!entryId,
+    enabled: enabled && !!entryId,
   });
 }
 

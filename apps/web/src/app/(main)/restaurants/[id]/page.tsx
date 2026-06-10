@@ -39,15 +39,8 @@ export default function RestaurantDetailPage() {
     }
   };
 
-  const handleDelete = async (entryId: string) => {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-    try {
-      await deleteEntry.mutateAsync(entryId);
-      addToast("Entry deleted successfully", "success");
-      queryClient.invalidateQueries({ queryKey: ["restaurants", "detail", id] });
-    } catch (err: any) {
-      addToast(err.message || "Failed to delete entry", "error");
-    }
+  const handleDelete = () => {
+    queryClient.invalidateQueries({ queryKey: ["restaurants", "detail", id] });
   };
 
   if (isLoading) {
@@ -319,7 +312,7 @@ export default function RestaurantDetailPage() {
               key={entry.id}
               entry={entry}
               isOwner={user?.id === entry.user.id}
-              onDelete={() => handleDelete(entry.id)}
+              onDelete={handleDelete}
               onImageClick={setZoomedImageUrl}
             />
           ))

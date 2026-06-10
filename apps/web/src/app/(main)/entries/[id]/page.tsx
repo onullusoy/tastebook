@@ -25,14 +25,8 @@ export default function EntryDetailsPage() {
 
   const isOwner = user?.id === entry?.user.id;
 
-  const handleDelete = async () => {
-    try {
-      await deleteEntry.mutateAsync(id);
-      addToast("Entry deleted successfully", "success");
-      router.push("/feed");
-    } catch (err: any) {
-      addToast(err.message || "Failed to delete entry", "error");
-    }
+  const handleDelete = () => {
+    router.push("/feed");
   };
 
   if (isLoading) {

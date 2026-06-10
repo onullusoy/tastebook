@@ -30,16 +30,22 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
   const [menuOpen, setMenuOpen] = useState(false);
   const [showListsSubmenu, setShowListsSubmenu] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   React.useEffect(() => {
     setImageError(false);
   }, [activeImageIndex, entry.id]);
 
-  const { data: counters } = useEntryCounters(entry.id, {
-    likes_count: entry.likes_count,
-    comments_count: entry.comments_count,
-    is_liked: !!entry.is_liked,
-  });
+  const { data: counters } = useEntryCounters(
+    entry.id,
+    {
+      likes_count: entry.likes_count,
+      comments_count: entry.comments_count,
+      is_liked: !!entry.is_liked,
+    },
+    !isDeleting && !isDeleted
+  );
 
   const { user } = useAuthStore();
   const router = useRouter();
@@ -105,8 +111,23 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
   const priceSymbols = entry.price_level ? "$".repeat(entry.price_level) : "";
   const foodItemNames = entry.food_items?.map((fi) => fi.name) ?? [];
 
+  if (isDeleted) return null;
+
   return (
-    <div className="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
+    <div
+      className={`grid transition-all duration-400 ease-in-out ${
+        isDeleting
+          ? "grid-template-rows-[0fr] opacity-0 scale-95 pointer-events-none"
+          : "grid-template-rows-[1fr] opacity-100 scale-100"
+      }`}
+      style={{
+        gridTemplateRows: isDeleting ? "0fr" : "1fr",
+        transitionProperty: "grid-template-rows, opacity, transform, margin",
+        marginBottom: isDeleting ? "-24px" : "0px",
+      }}
+    >
+      <div className="overflow-hidden min-h-0">
+        <div className="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
@@ -218,19 +239,22 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
                           e.stopPropagation();
                           setMenuOpen(false);
                           if (confirm("Are you sure you want to delete this entry?")) {
-                            if (onDelete) {
-                              onDelete();
-                            } else {
-                              try {
-                                await deleteEntryMutation.mutateAsync(entry.id);
-                                addToast("Entry deleted successfully", "success");
-                              } catch (err) {
-                                addToast("Failed to delete entry", "error");
-                              }
+                            try {
+                              await deleteEntryMutation.mutateAsync(entry.id);
+                              addToast("Entry deleted successfully", "success");
+                              setIsDeleting(true);
+                              setTimeout(() => {
+                                setIsDeleted(true);
+                                if (onDelete) {
+                                  onDelete();
+                                }
+                              }, 400);
+                            } catch (err) {
+                              addToast("Failed to delete entry", "error");
                             }
                           }
                         }}
-                        className="w-full px-4 py-2 text-sm text-red-650 hover:bg-red-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                        className="w-full px-4 py-2 text-sm text-red-655 hover:bg-red-50 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
                       >
                         <span>🗑️</span> Delete Post
                       </button>
@@ -698,6 +722,8 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
             </form>
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

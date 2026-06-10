@@ -419,6 +419,10 @@ export class FeedService {
 
   async invalidateUserFeed(userId: string): Promise<void> {
     await this.redis.incr(`feed_version:${userId}`);
+    const keys = await this.redis.keys(`feed:public:${userId}:*`);
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
   }
 
   async invalidateFollowerFeeds(userId: string): Promise<void> {
