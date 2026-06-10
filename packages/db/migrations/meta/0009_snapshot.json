@@ -1,7 +1,92 @@
 {
+  "id": "7624c40a-c886-4c69-8428-b917c176016b",
+  "prevId": "ea018092-3ece-4493-9213-baf20d5ff424",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.comment_likes": {
+      "name": "comment_likes",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment_id": {
+          "name": "comment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_likes_comment": {
+          "name": "idx_likes_comment",
+          "columns": [
+            {
+              "expression": "comment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "comment_likes_user_id_users_id_fk": {
+          "name": "comment_likes_user_id_users_id_fk",
+          "tableFrom": "comment_likes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "comment_likes_comment_id_entry_comments_id_fk": {
+          "name": "comment_likes_comment_id_entry_comments_id_fk",
+          "tableFrom": "comment_likes",
+          "tableTo": "entry_comments",
+          "columnsFrom": [
+            "comment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "comment_likes_user_id_comment_id_pk": {
+          "name": "comment_likes_user_id_comment_id_pk",
+          "columns": [
+            "user_id",
+            "comment_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.entry_comments": {
       "name": "entry_comments",
       "schema": "",
@@ -39,40 +124,77 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_comments_entry": {
+          "name": "idx_comments_entry",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_comments_user": {
+          "name": "idx_comments_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "entry_comments_entry_id_taste_entries_id_fk": {
           "name": "entry_comments_entry_id_taste_entries_id_fk",
           "tableFrom": "entry_comments",
+          "tableTo": "taste_entries",
           "columnsFrom": [
             "entry_id"
           ],
-          "tableTo": "taste_entries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "entry_comments_user_id_users_id_fk": {
           "name": "entry_comments_user_id_users_id_fk",
           "tableFrom": "entry_comments",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.entry_likes": {
       "name": "entry_likes",
@@ -98,33 +220,49 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_likes_entry": {
+          "name": "idx_likes_entry",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "entry_likes_user_id_users_id_fk": {
           "name": "entry_likes_user_id_users_id_fk",
           "tableFrom": "entry_likes",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "entry_likes_entry_id_taste_entries_id_fk": {
           "name": "entry_likes_entry_id_taste_entries_id_fk",
           "tableFrom": "entry_likes",
+          "tableTo": "taste_entries",
           "columnsFrom": [
             "entry_id"
           ],
-          "tableTo": "taste_entries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -138,8 +276,8 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.entry_media": {
       "name": "entry_media",
@@ -199,6 +337,7 @@
       },
       "indexes": {
         "idx_media_entry": {
+          "name": "idx_media_entry",
           "columns": [
             {
               "expression": "entry_id",
@@ -213,13 +352,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_media_entry",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_media_orphan": {
+          "name": "idx_media_orphan",
           "columns": [
             {
               "expression": "user_id",
@@ -234,46 +373,46 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_media_orphan",
           "isUnique": false,
+          "where": "\"entry_media\".\"entry_id\" IS NULL",
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "entry_media_entry_id_taste_entries_id_fk": {
           "name": "entry_media_entry_id_taste_entries_id_fk",
           "tableFrom": "entry_media",
+          "tableTo": "taste_entries",
           "columnsFrom": [
             "entry_id"
           ],
-          "tableTo": "taste_entries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "entry_media_user_id_users_id_fk": {
           "name": "entry_media_user_id_users_id_fk",
           "tableFrom": "entry_media",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.follows": {
       "name": "follows",
@@ -301,6 +440,7 @@
       },
       "indexes": {
         "idx_follows_follower": {
+          "name": "idx_follows_follower",
           "columns": [
             {
               "expression": "follower_id",
@@ -315,13 +455,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_follows_follower",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_follows_following": {
+          "name": "idx_follows_following",
           "columns": [
             {
               "expression": "following_id",
@@ -336,39 +476,38 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_follows_following",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "follows_follower_id_users_id_fk": {
           "name": "follows_follower_id_users_id_fk",
           "tableFrom": "follows",
+          "tableTo": "users",
           "columnsFrom": [
             "follower_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "follows_following_id_users_id_fk": {
           "name": "follows_following_id_users_id_fk",
           "tableFrom": "follows",
+          "tableTo": "users",
           "columnsFrom": [
             "following_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -382,8 +521,13 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {
+        "check_self_follow": {
+          "name": "check_self_follow",
+          "value": "\"follows\".\"follower_id\" <> \"follows\".\"following_id\""
+        }
+      },
+      "isRLSEnabled": false
     },
     "public.food_items": {
       "name": "food_items",
@@ -431,6 +575,7 @@
       },
       "indexes": {
         "idx_food_items_entry": {
+          "name": "idx_food_items_entry",
           "columns": [
             {
               "expression": "entry_id",
@@ -445,33 +590,32 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_food_items_entry",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "food_items_entry_id_taste_entries_id_fk": {
           "name": "food_items_entry_id_taste_entries_id_fk",
           "tableFrom": "food_items",
+          "tableTo": "taste_entries",
           "columnsFrom": [
             "entry_id"
           ],
-          "tableTo": "taste_entries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.users": {
       "name": "users",
@@ -520,6 +664,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "gourme_points": {
+          "name": "gourme_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -541,22 +692,22 @@
       "uniqueConstraints": {
         "users_username_unique": {
           "name": "users_username_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "username"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "users_email_unique": {
           "name": "users_email_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.taste_entries": {
       "name": "taste_entries",
@@ -598,7 +749,7 @@
           "type": "text[]",
           "primaryKey": false,
           "notNull": false,
-          "default": []
+          "default": "'{}'"
         },
         "price_level": {
           "name": "price_level",
@@ -698,6 +849,7 @@
       },
       "indexes": {
         "idx_entries_user_created": {
+          "name": "idx_entries_user_created",
           "columns": [
             {
               "expression": "user_id",
@@ -718,13 +870,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_user_created",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_entries_created": {
+          "name": "idx_entries_created",
           "columns": [
             {
               "expression": "created_at",
@@ -739,13 +891,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_created",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_entries_visibility": {
+          "name": "idx_entries_visibility",
           "columns": [
             {
               "expression": "visibility",
@@ -760,13 +912,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_visibility",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_entries_city": {
+          "name": "idx_entries_city",
           "columns": [
             {
               "expression": "city",
@@ -781,13 +933,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_city",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_entries_list_id": {
+          "name": "idx_entries_list_id",
           "columns": [
             {
               "expression": "list_id",
@@ -796,13 +948,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_list_id",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_entries_google_place_id": {
+          "name": "idx_entries_google_place_id",
           "columns": [
             {
               "expression": "google_place_id",
@@ -811,59 +963,79 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_entries_google_place_id",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
+        },
+        "idx_entries_city_place": {
+          "name": "idx_entries_city_place",
+          "columns": [
+            {
+              "expression": "city",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "google_place_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
         "taste_entries_user_id_users_id_fk": {
           "name": "taste_entries_user_id_users_id_fk",
           "tableFrom": "taste_entries",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "taste_entries_list_id_lists_id_fk": {
           "name": "taste_entries_list_id_lists_id_fk",
           "tableFrom": "taste_entries",
+          "tableTo": "lists",
           "columnsFrom": [
             "list_id"
           ],
-          "tableTo": "lists",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "taste_entries_google_place_id_restaurants_google_place_id_fk": {
           "name": "taste_entries_google_place_id_restaurants_google_place_id_fk",
           "tableFrom": "taste_entries",
+          "tableTo": "restaurants",
           "columnsFrom": [
             "google_place_id"
           ],
-          "tableTo": "restaurants",
           "columnsTo": [
             "google_place_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.lists": {
       "name": "lists",
@@ -924,6 +1096,7 @@
       },
       "indexes": {
         "idx_lists_user": {
+          "name": "idx_lists_user",
           "columns": [
             {
               "expression": "user_id",
@@ -938,33 +1111,32 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_lists_user",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "lists_user_id_users_id_fk": {
           "name": "lists_user_id_users_id_fk",
           "tableFrom": "lists",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.list_items": {
       "name": "list_items",
@@ -1006,6 +1178,7 @@
       },
       "indexes": {
         "idx_list_items_list": {
+          "name": "idx_list_items_list",
           "columns": [
             {
               "expression": "list_id",
@@ -1020,13 +1193,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_list_items_list",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_list_items_unique": {
+          "name": "idx_list_items_unique",
           "columns": [
             {
               "expression": "list_id",
@@ -1041,46 +1214,45 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_list_items_unique",
           "isUnique": true,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "list_items_list_id_lists_id_fk": {
           "name": "list_items_list_id_lists_id_fk",
           "tableFrom": "list_items",
+          "tableTo": "lists",
           "columnsFrom": [
             "list_id"
           ],
-          "tableTo": "lists",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "list_items_entry_id_taste_entries_id_fk": {
           "name": "list_items_entry_id_taste_entries_id_fk",
           "tableFrom": "list_items",
+          "tableTo": "taste_entries",
           "columnsFrom": [
             "entry_id"
           ],
-          "tableTo": "taste_entries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.list_collaborators": {
       "name": "list_collaborators",
@@ -1122,6 +1294,7 @@
       },
       "indexes": {
         "idx_list_collaborators_unique": {
+          "name": "idx_list_collaborators_unique",
           "columns": [
             {
               "expression": "list_id",
@@ -1136,13 +1309,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_list_collaborators_unique",
           "isUnique": true,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_list_collaborators_user": {
+          "name": "idx_list_collaborators_user",
           "columns": [
             {
               "expression": "user_id",
@@ -1151,46 +1324,45 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_list_collaborators_user",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "list_collaborators_list_id_lists_id_fk": {
           "name": "list_collaborators_list_id_lists_id_fk",
           "tableFrom": "list_collaborators",
+          "tableTo": "lists",
           "columnsFrom": [
             "list_id"
           ],
-          "tableTo": "lists",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "list_collaborators_user_id_users_id_fk": {
           "name": "list_collaborators_user_id_users_id_fk",
           "tableFrom": "list_collaborators",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.refresh_tokens": {
       "name": "refresh_tokens",
@@ -1231,6 +1403,7 @@
       },
       "indexes": {
         "idx_refresh_tokens_user": {
+          "name": "idx_refresh_tokens_user",
           "columns": [
             {
               "expression": "user_id",
@@ -1239,13 +1412,13 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_refresh_tokens_user",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "idx_refresh_tokens_expires": {
+          "name": "idx_refresh_tokens_expires",
           "columns": [
             {
               "expression": "expires_at",
@@ -1254,41 +1427,40 @@
               "nulls": "last"
             }
           ],
-          "with": {},
-          "name": "idx_refresh_tokens_expires",
           "isUnique": false,
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "refresh_tokens_user_id_users_id_fk": {
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "refresh_tokens_token_hash_unique": {
           "name": "refresh_tokens_token_hash_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "token_hash"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.restaurants": {
       "name": "restaurants",
@@ -1351,7 +1523,7 @@
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": []
+          "default": "'{}'"
         },
         "created_at": {
           "name": "created_at",
@@ -1373,21 +1545,19 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {},
   "schemas": {},
-  "_meta": {
-    "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "id": "43f0030b-3155-45ef-8044-72e9da363f90",
-  "prevId": "7baf4e91-96c1-4350-8462-a8ff97f34ec9",
   "sequences": {},
+  "roles": {},
   "policies": {},
   "views": {},
-  "roles": {}
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
 }

@@ -9,6 +9,7 @@ export interface UserResponse {
   following_count?: number;
   is_following?: boolean;
   is_friend?: boolean;
+  gourme_points?: number;
 }
 
 export interface MediaResponse {

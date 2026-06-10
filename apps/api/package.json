@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "optimize-legacy": "node --env-file=../../.env --import tsx src/scripts/optimize-legacy-images.ts",
-    "backfill-addresses": "node --env-file=../../.env --import tsx src/scripts/backfill-formatted-addresses.ts"
+    "backfill-addresses": "node --env-file=../../.env --import tsx src/scripts/backfill-formatted-addresses.ts",
+    "backfill-gp": "node --env-file=../../.env --import tsx src/scripts/backfill-gp.ts"
   },
   "dependencies": {
     "@adminjs/fastify": "^4.2.0",

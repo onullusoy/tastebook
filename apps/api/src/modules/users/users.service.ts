@@ -98,6 +98,7 @@ export class UsersService {
       following_count: followingCount,
       is_following: isFollowing,
       is_friend: isFriend,
+      gourme_points: user.gourmePoints,
     };
   }
 

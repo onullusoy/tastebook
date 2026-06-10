@@ -68,6 +68,27 @@ export class CitiesService {
   }
 
   async getTopGourmets(cityName: string, requesterId: string | undefined, scope: "public" | "friends") {
+    const entryGpSubquery = this.db
+      .select({
+        id: tasteEntries.id,
+        userId: tasteEntries.userId,
+        city: tasteEntries.city,
+        visibility: tasteEntries.visibility,
+        entryGp: sql<number>`
+          5
+          + (CASE WHEN ${tasteEntries.ratingAmbience} IS NOT NULL THEN 1 ELSE 0 END)
+          + (CASE WHEN ${tasteEntries.ratingTaste} IS NOT NULL THEN 1 ELSE 0 END)
+          + (CASE WHEN ${tasteEntries.ratingService} IS NOT NULL THEN 1 ELSE 0 END)
+          + (CASE WHEN ${tasteEntries.ratingValue} IS NOT NULL THEN 1 ELSE 0 END)
+          + (CASE WHEN ${tasteEntries.notes} IS NOT NULL AND length(${tasteEntries.notes}) > 100 THEN 2 ELSE 0 END)
+          + COALESCE((SELECT LEAST(6, 2 * COUNT(*)) FROM entry_media WHERE entry_media.entry_id = ${tasteEntries.id}), 0)
+          + COALESCE((SELECT COUNT(*) FROM entry_likes WHERE entry_likes.entry_id = ${tasteEntries.id}), 0) * 1
+          + COALESCE((SELECT COUNT(*) FROM entry_comments WHERE entry_comments.entry_id = ${tasteEntries.id} AND entry_comments.user_id != ${tasteEntries.userId}), 0) * 2
+        `.as("entry_gp")
+      })
+      .from(tasteEntries)
+      .as("e");
+
     if (scope === "friends") {
       if (!requesterId) {
         throw new ForbiddenError("Authentication is required to view friends ranking.");
@@ -82,20 +103,21 @@ export class CitiesService {
           username: users.username,
           display_name: users.displayName,
           avatar_url: users.avatarUrl,
-          review_count: count(tasteEntries.id),
+          review_count: sql<number>`count(${entryGpSubquery.id})::int`,
+          gourme_points: sql<number>`COALESCE(sum(${entryGpSubquery.entryGp}), 0)::int`,
         })
         .from(users)
-        .innerJoin(tasteEntries, eq(users.id, tasteEntries.userId))
+        .innerJoin(entryGpSubquery, eq(users.id, entryGpSubquery.userId))
         .innerJoin(f1, and(eq(f1.followerId, requesterId), eq(f1.followingId, users.id)))
         .innerJoin(f2, and(eq(f2.followingId, requesterId), eq(f2.followerId, users.id)))
         .where(
           and(
-            eq(tasteEntries.city, cityName),
-            inArray(tasteEntries.visibility, ["public", "friends"])
+            eq(entryGpSubquery.city, cityName),
+            inArray(entryGpSubquery.visibility, ["public", "friends"])
           )
         )
         .groupBy(users.id, users.username, users.displayName, users.avatarUrl)
-        .orderBy(desc(count(tasteEntries.id)))
+        .orderBy(desc(sql`COALESCE(sum(${entryGpSubquery.entryGp}), 0)`))
         .limit(10);
 
       return results;
@@ -108,18 +130,19 @@ export class CitiesService {
         username: users.username,
         display_name: users.displayName,
         avatar_url: users.avatarUrl,
-        review_count: count(tasteEntries.id),
+        review_count: sql<number>`count(${entryGpSubquery.id})::int`,
+        gourme_points: sql<number>`COALESCE(sum(${entryGpSubquery.entryGp}), 0)::int`,
       })
       .from(users)
-      .innerJoin(tasteEntries, eq(users.id, tasteEntries.userId))
+      .innerJoin(entryGpSubquery, eq(users.id, entryGpSubquery.userId))
       .where(
         and(
-          eq(tasteEntries.city, cityName),
-          inArray(tasteEntries.visibility, ["public", "friends"])
+          eq(entryGpSubquery.city, cityName),
+          inArray(entryGpSubquery.visibility, ["public", "friends"])
         )
       )
       .groupBy(users.id, users.username, users.displayName, users.avatarUrl)
-      .orderBy(desc(count(tasteEntries.id)))
+      .orderBy(desc(sql`COALESCE(sum(${entryGpSubquery.entryGp}), 0)`))
       .limit(10);
 
     return results;

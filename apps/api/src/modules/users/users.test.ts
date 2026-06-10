@@ -210,4 +210,144 @@ describe("Users Module Integration Tests", () => {
       )
     ).rejects.toThrow();
   });
+
+  describe("Gourmet Points (GP) Integration Tests", () => {
+    it("should calculate and update GP correctly on follow, like, comment, and delete cascade", async () => {
+      const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+      const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+
+      // 1. Initial GP is 0
+      const resProfileInit = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(resProfileInit.statusCode).toBe(200);
+      expect(JSON.parse(resProfileInit.body).data.gourme_points).toBe(0);
+
+      // 2. Alice follows Bob -> Bob gets follower points
+      // 1 follower = round(15 * sqrt(1)) = 15 GP
+      const followRes = await app.inject({
+        method: "POST",
+        url: `/users/${bob.user.id}/follow`,
+        headers: alice.headers,
+      });
+      expect(followRes.statusCode).toBe(204);
+
+      const resProfileFollow = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileFollow.body).data.gourme_points).toBe(15);
+
+      // 3. Bob posts a review
+      // Base review = 5 GP
+      // Optional ratings = 4 GP (Ambience, Taste, Service, Value)
+      // Notes length > 100 = 2 GP
+      // Total post points = 5 + 4 + 2 = 11 GP
+      // Global GP = 15 (follower) + 11 (post) = 26 GP
+      const longNotes = "This is a super detailed review that is definitely going to be longer than 100 characters so that I can earn the completeness bonus for my Gourmet Points!".repeat(2);
+      const entryRes = await app.inject({
+        method: "POST",
+        url: "/entries",
+        headers: bob.headers,
+        payload: {
+          restaurant_name: "Deluxe Burger",
+          city: "Paris",
+          country: "France",
+          price_level: 3,
+          rating: 9,
+          rating_ambience: 8,
+          rating_taste: 9,
+          rating_service: 8,
+          rating_value: 9,
+          notes: longNotes,
+          visibility: "public",
+          food_items: [],
+        },
+      });
+      expect(entryRes.statusCode).toBe(201);
+      const entry = JSON.parse(entryRes.body).data;
+
+      const resProfilePost = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfilePost.body).data.gourme_points).toBe(26);
+
+      // 4. Alice likes Bob's review -> Bob gets +1 GP (26 + 1 = 27 GP)
+      const likeRes = await app.inject({
+        method: "POST",
+        url: `/entries/${entry.id}/like`,
+        headers: alice.headers,
+      });
+      expect(likeRes.statusCode).toBe(200);
+
+      const resProfileLike = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileLike.body).data.gourme_points).toBe(27);
+
+      // 5. Alice comments on Bob's review -> Bob gets +2 GP (27 + 2 = 29 GP)
+      const commentRes = await app.inject({
+        method: "POST",
+        url: `/entries/${entry.id}/comments`,
+        headers: alice.headers,
+        payload: {
+          content: "Wow, delicious burgers!",
+        },
+      });
+      expect(commentRes.statusCode).toBe(201);
+      const comment = JSON.parse(commentRes.body).data;
+
+      const resProfileComment = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileComment.body).data.gourme_points).toBe(29);
+
+      // 6. Delete comment -> Bob's GP goes back to 27
+      const deleteCommentRes = await app.inject({
+        method: "DELETE",
+        url: `/entries/${entry.id}/comments/${comment.id}`,
+        headers: alice.headers,
+      });
+      expect(deleteCommentRes.statusCode).toBe(200);
+
+      const resProfileDelComment = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileDelComment.body).data.gourme_points).toBe(27);
+
+      // 7. Delete Bob's review -> all likes, comments are deleted, review is deleted
+      // Bob's GP should revert back to 15 (follower only)
+      const deleteEntryRes = await app.inject({
+        method: "DELETE",
+        url: `/entries/${entry.id}`,
+        headers: bob.headers,
+      });
+      expect(deleteEntryRes.statusCode).toBe(204);
+
+      const resProfileDelEntry = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileDelEntry.body).data.gourme_points).toBe(15);
+
+      // 8. Alice unfollows Bob -> Bob's GP reverts to 0
+      const unfollowRes = await app.inject({
+        method: "DELETE",
+        url: `/users/${bob.user.id}/follow`,
+        headers: alice.headers,
+      });
+      expect(unfollowRes.statusCode).toBe(204);
+
+      const resProfileFinal = await app.inject({
+        method: "GET",
+        url: `/users/${bob.user.id}`,
+      });
+      expect(JSON.parse(resProfileFinal.body).data.gourme_points).toBe(0);
+    });
+  });
 });

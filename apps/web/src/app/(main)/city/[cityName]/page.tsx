@@ -336,7 +336,10 @@ export default function CityFeedPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-xs font-black bg-primary-50 text-primary-600 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-black bg-amber-50 text-amber-700 border border-amber-200/50 px-2.5 py-1 rounded-lg">
+                        {gourmet.gourme_points ?? 0} GP
+                      </span>
+                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">
                         {gourmet.review_count} {gourmet.review_count === 1 ? "review" : "reviews"}
                       </span>
                     </div>

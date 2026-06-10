@@ -25,6 +25,7 @@ export interface CityGourmetRankingItem {
   display_name: string | null;
   avatar_url: string | null;
   review_count: number;
+  gourme_points: number;
 }
 
 export function useCityStats(cityName: string) {

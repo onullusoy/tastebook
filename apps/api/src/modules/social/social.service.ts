@@ -2,6 +2,7 @@ import { createDb, users, follows } from "@tastebook/db";
 import { eq, and, or, sql, lt, desc, aliasedTable, inArray } from "drizzle-orm";
 import { NotFoundError, ValidationError, ConflictError } from "../../shared/errors";
 import { encodeCursor, decodeCursor } from "../../shared/utils/cursor";
+import { recalculateUserGP } from "../../shared/utils/gourme-points";
 import type { UserResponse, PaginatedResponse } from "@tastebook/shared/api-types";
 
 export class SocialService {
@@ -17,32 +18,38 @@ export class SocialService {
     if (!targetUser) {
       throw new NotFoundError("User not found");
     }
-    const res = await this.db
-      .insert(follows)
-      .values({
-        followerId,
-        followingId: targetId,
-      })
-      .onConflictDoNothing()
-      .returning();
-    if (res.length === 0) {
-      throw new ConflictError("Already following");
-    }
+    await this.db.transaction(async (tx) => {
+      const res = await tx
+        .insert(follows)
+        .values({
+          followerId,
+          followingId: targetId,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (res.length === 0) {
+        throw new ConflictError("Already following");
+      }
+      await recalculateUserGP(tx, targetId);
+    });
   }
 
   async unfollow(followerId: string, targetId: string): Promise<void> {
-    const res = await this.db
-      .delete(follows)
-      .where(
-        and(
-          eq(follows.followerId, followerId),
-          eq(follows.followingId, targetId)
+    await this.db.transaction(async (tx) => {
+      const res = await tx
+        .delete(follows)
+        .where(
+          and(
+            eq(follows.followerId, followerId),
+            eq(follows.followingId, targetId)
+          )
         )
-      )
-      .returning();
-    if (res.length === 0) {
-      throw new NotFoundError("Not following this user");
-    }
+        .returning();
+      if (res.length === 0) {
+        throw new NotFoundError("Not following this user");
+      }
+      await recalculateUserGP(tx, targetId);
+    });
   }
 
   async isFollowing(followerId: string, targetId: string): Promise<boolean> {
@@ -168,6 +175,7 @@ export class SocialService {
         following_count: followingCounts.get(u.id) ?? 0,
         is_following: isFollowing,
         is_friend: isFriend,
+        gourme_points: u.gourmePoints,
       };
     });
   }

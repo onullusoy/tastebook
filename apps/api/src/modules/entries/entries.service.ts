@@ -5,6 +5,7 @@ import type { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/s
 import type { EntryResponse, PaginatedResponse } from "@tastebook/shared/api-types";
 import { MediaService } from "../media/media.service";
 import { encodeCursor, decodeCursor } from "../../shared/utils/cursor";
+import { recalculateUserGP } from "../../shared/utils/gourme-points";
 
 export class EntriesService {
   constructor(
@@ -308,6 +309,8 @@ export class EntriesService {
       await this.recalculateRestaurantStats(newEntry.googlePlaceId);
     }
 
+    await recalculateUserGP(this.db, userId);
+
     return this.fetchEntryResponse(newEntry.id, userId);
   }
 
@@ -403,6 +406,8 @@ export class EntriesService {
       await this.recalculateRestaurantStats(oldGooglePlaceId);
     }
 
+    await recalculateUserGP(this.db, userId);
+
     return updatedResponse;
   }
 
@@ -432,6 +437,8 @@ export class EntriesService {
     if (entry.googlePlaceId) {
       await this.recalculateRestaurantStats(entry.googlePlaceId);
     }
+
+    await recalculateUserGP(this.db, userId);
   }
 
   /**
@@ -734,6 +741,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ likesCount: sql`${tasteEntries.likesCount} + 1` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
     });
 
     return entry.user.id;
@@ -760,6 +769,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ likesCount: sql`GREATEST(0, ${tasteEntries.likesCount} - 1)` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
     });
 
     return entry.user.id;
@@ -787,6 +798,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ commentsCount: sql`${tasteEntries.commentsCount} + 1` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
 
       return newComment;
     });
@@ -910,6 +923,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ commentsCount: sql`GREATEST(0, ${tasteEntries.commentsCount} - 1)` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entryUserId);
 
       return entryUserId;
     });
