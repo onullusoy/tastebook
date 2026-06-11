@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -8,6 +8,8 @@ export const users = pgTable("users", {
   displayName: varchar("display_name", { length: 100 }),
   avatarUrl: text("avatar_url"),
   bio: varchar("bio", { length: 500 }),
+  gourmePoints: integer("gourme_points").default(0).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

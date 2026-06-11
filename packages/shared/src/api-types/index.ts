@@ -9,6 +9,8 @@ export interface UserResponse {
   following_count?: number;
   is_following?: boolean;
   is_friend?: boolean;
+  gourme_points?: number;
+  metadata?: Record<string, any> | null;
 }
 
 export interface MediaResponse {
@@ -66,6 +68,7 @@ export interface EntryResponse {
   comments_count: number;
   is_liked?: boolean;
 
+  metadata?: Record<string, any> | null;
   created_at: string;
 }
 
@@ -86,6 +89,7 @@ export interface ListResponse {
   item_count: number;
   collaborators: CollaboratorResponse[];
   is_collaborative: boolean;
+  metadata?: Record<string, any> | null;
   created_at: string;
 }
 
@@ -120,6 +124,7 @@ export interface RestaurantResponse {
   stats: RestaurantStats | null;
   formatted_address?: string | null;
   photos?: string[];
+  metadata?: Record<string, any> | null;
 }
 
 export interface RestaurantDetailResponse {

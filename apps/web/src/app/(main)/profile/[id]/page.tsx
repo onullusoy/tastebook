@@ -207,6 +207,12 @@ export default function ProfilePage() {
 
           <div className="flex gap-6 border-t border-warm-100 pt-4 mt-2">
             <div className="flex flex-col">
+              <span className="text-amber-600 font-black text-lg">
+                {user.gourme_points ?? 0}
+              </span>
+              <span className="text-stone-500 text-xs font-bold uppercase">GP</span>
+            </div>
+            <div className="flex flex-col">
               <span className="text-stone-900 font-black text-lg">
                 {entries.length || 0}
               </span>

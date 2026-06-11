@@ -4,6 +4,7 @@ export const createListSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   visibility: z.enum(["public", "friends", "private"]).default("public"),
+  metadata: z.record(z.any()).optional(),
 });
 export const updateListSchema = createListSchema.partial();
 

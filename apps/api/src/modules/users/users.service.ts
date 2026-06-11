@@ -98,6 +98,8 @@ export class UsersService {
       following_count: followingCount,
       is_following: isFollowing,
       is_friend: isFriend,
+      gourme_points: user.gourmePoints,
+      metadata: user.metadata,
     };
   }
 
@@ -119,6 +121,9 @@ export class UsersService {
     }
     if (data.bio !== undefined) {
       updateData.bio = data.bio;
+    }
+    if (data.metadata !== undefined) {
+      updateData.metadata = data.metadata;
     }
 
     await this.db

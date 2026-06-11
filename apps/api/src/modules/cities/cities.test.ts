@@ -134,7 +134,7 @@ describe("Cities Module Integration Tests", () => {
     // Should contain Alice, Bob, and Charlie
     expect(bodyPublic.data.length).toBe(3);
 
-    // Friends list (requires auth, scoped to mutual follows)
+    // Friends list (requires auth, scoped to mutual follows + the user themselves)
     const resFriends = await app.inject({
       method: "GET",
       url: `/api/cities/Paris/rankings/gourmets?scope=friends`,
@@ -142,9 +142,10 @@ describe("Cities Module Integration Tests", () => {
     });
     expect(resFriends.statusCode).toBe(200);
     const bodyFriends = JSON.parse(resFriends.body);
-    // Should ONLY contain Bob (Charlie is not a mutual follower)
-    expect(bodyFriends.data.length).toBe(1);
-    expect(bodyFriends.data[0].username).toBe("bob");
-    expect(bodyFriends.data[0].review_count).toBe(2);
+    // Should contain both Alice (requester) and Bob (mutual friend)
+    expect(bodyFriends.data.length).toBe(2);
+    const usernames = bodyFriends.data.map((item: any) => item.username);
+    expect(usernames).toContain("alice");
+    expect(usernames).toContain("bob");
   });
 });

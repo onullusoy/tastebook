@@ -5,6 +5,7 @@ import type { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/s
 import type { EntryResponse, PaginatedResponse } from "@tastebook/shared/api-types";
 import { MediaService } from "../media/media.service";
 import { encodeCursor, decodeCursor } from "../../shared/utils/cursor";
+import { recalculateUserGP } from "../../shared/utils/gourme-points";
 
 export class EntriesService {
   constructor(
@@ -128,6 +129,7 @@ export class EntriesService {
       likes_count: entry.likesCount,
       comments_count: entry.commentsCount,
       is_liked: isLiked,
+      metadata: entry.metadata,
       created_at: entry.createdAt.toISOString(),
     };
   }
@@ -268,6 +270,7 @@ export class EntriesService {
         notes: data.notes ?? null,
         visibility: data.visibility ?? "public",
         listId: data.list_id ?? null,
+        metadata: data.metadata ?? {},
       })
       .returning();
 
@@ -307,6 +310,8 @@ export class EntriesService {
     if (newEntry.googlePlaceId) {
       await this.recalculateRestaurantStats(newEntry.googlePlaceId);
     }
+
+    await recalculateUserGP(this.db, userId);
 
     return this.fetchEntryResponse(newEntry.id, userId);
   }
@@ -369,6 +374,7 @@ export class EntriesService {
     if (data.rating_value !== undefined) updateData.ratingValue = data.rating_value;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.metadata !== undefined) updateData.metadata = data.metadata;
     if (data.list_id !== undefined) {
       await this.verifyListAccess(data.list_id, userId);
       updateData.listId = data.list_id;
@@ -403,6 +409,8 @@ export class EntriesService {
       await this.recalculateRestaurantStats(oldGooglePlaceId);
     }
 
+    await recalculateUserGP(this.db, userId);
+
     return updatedResponse;
   }
 
@@ -432,6 +440,8 @@ export class EntriesService {
     if (entry.googlePlaceId) {
       await this.recalculateRestaurantStats(entry.googlePlaceId);
     }
+
+    await recalculateUserGP(this.db, userId);
   }
 
   /**
@@ -539,6 +549,7 @@ export class EntriesService {
         likes_count: entry.likesCount,
         comments_count: entry.commentsCount,
         is_liked: likedEntryIds.has(entry.id),
+        metadata: entry.metadata,
         created_at: entry.createdAt.toISOString(),
       };
     });
@@ -734,6 +745,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ likesCount: sql`${tasteEntries.likesCount} + 1` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
     });
 
     return entry.user.id;
@@ -760,6 +773,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ likesCount: sql`GREATEST(0, ${tasteEntries.likesCount} - 1)` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
     });
 
     return entry.user.id;
@@ -787,6 +802,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ commentsCount: sql`${tasteEntries.commentsCount} + 1` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entry.user.id);
 
       return newComment;
     });
@@ -910,6 +927,8 @@ export class EntriesService {
         .update(tasteEntries)
         .set({ commentsCount: sql`GREATEST(0, ${tasteEntries.commentsCount} - 1)` })
         .where(eq(tasteEntries.id, entryId));
+
+      await recalculateUserGP(tx, entryUserId);
 
       return entryUserId;
     });
