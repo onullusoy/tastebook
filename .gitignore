@@ -8,3 +8,4 @@ dist/
 .turbo/
 .sisyphus/
 ARCHITECTURE.md
+.agents/
