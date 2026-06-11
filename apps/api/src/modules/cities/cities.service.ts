@@ -1,5 +1,5 @@
 import { createDb, tasteEntries, users, follows, restaurants } from "@tastebook/db";
-import { eq, and, inArray, desc, sql, count, avg, aliasedTable } from "drizzle-orm";
+import { eq, and, or, inArray, desc, sql, count, avg, aliasedTable } from "drizzle-orm";
 import { ForbiddenError } from "../../shared/errors";
 
 export class CitiesService {
@@ -108,12 +108,19 @@ export class CitiesService {
         })
         .from(users)
         .innerJoin(entryGpSubquery, eq(users.id, entryGpSubquery.userId))
-        .innerJoin(f1, and(eq(f1.followerId, requesterId), eq(f1.followingId, users.id)))
-        .innerJoin(f2, and(eq(f2.followingId, requesterId), eq(f2.followerId, users.id)))
+        .leftJoin(f1, and(eq(f1.followerId, requesterId), eq(f1.followingId, users.id)))
+        .leftJoin(f2, and(eq(f2.followingId, requesterId), eq(f2.followerId, users.id)))
         .where(
           and(
             eq(entryGpSubquery.city, cityName),
-            inArray(entryGpSubquery.visibility, ["public", "friends"])
+            inArray(entryGpSubquery.visibility, ["public", "friends"]),
+            or(
+              eq(users.id, requesterId),
+              and(
+                sql`${f1.followerId} IS NOT NULL`,
+                sql`${f2.followerId} IS NOT NULL`
+              )
+            )
           )
         )
         .groupBy(users.id, users.username, users.displayName, users.avatarUrl)
