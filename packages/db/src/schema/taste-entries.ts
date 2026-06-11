@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { lists } from "./lists";
 import { restaurants } from "./restaurants";
@@ -41,6 +41,8 @@ export const tasteEntries = pgTable("taste_entries", {
   // Denormalized engagement counters
   likesCount: integer("likes_count").default(0).notNull(),
   commentsCount: integer("comments_count").default(0).notNull(),
+
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

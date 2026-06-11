@@ -64,6 +64,9 @@ export const createEntrySchema = z.object({
 
   // Optional list association
   list_id: z.string().uuid().optional(),
+
+  // Generic JSONB metadata
+  metadata: z.record(z.any()).optional(),
 });
 
 export const updateEntrySchema = createEntrySchema

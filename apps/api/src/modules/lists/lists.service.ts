@@ -118,6 +118,7 @@ export class ListsService {
       item_count: itemCountResult?.count ?? 0,
       collaborators,
       is_collaborative: collaborators.length > 0,
+      metadata: list.metadata,
       created_at: list.createdAt.toISOString(),
     };
   }
@@ -139,6 +140,7 @@ export class ListsService {
         title: data.title,
         description: data.description ?? null,
         visibility: data.visibility ?? "public",
+        metadata: data.metadata ?? {},
       })
       .returning();
 
@@ -291,6 +293,7 @@ export class ListsService {
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.metadata !== undefined) updateData.metadata = data.metadata;
 
     await this.db
       .update(lists)
@@ -647,6 +650,7 @@ export class ListsService {
         item_count: itemCountMap.get(list.id) ?? 0,
         collaborators: colabs,
         is_collaborative: colabs.length > 0,
+        metadata: list.metadata,
         created_at: list.createdAt.toISOString(),
       };
     });

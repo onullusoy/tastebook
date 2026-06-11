@@ -1,1 +1,0 @@
-ALTER TABLE "restaurants" ADD COLUMN "country_code" varchar(2) DEFAULT '' NOT NULL;

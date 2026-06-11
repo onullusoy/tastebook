@@ -76,6 +76,7 @@ export class RestaurantsService {
                   ratingCount: 0,
                   priceLevelAvg: "0.0",
                   atmosphereTags: [],
+                  metadata: {},
                 })
                 .returning();
               restaurantRow = newRestaurant;
@@ -99,6 +100,7 @@ export class RestaurantsService {
           ratingCount: 0,
           priceLevelAvg: "0.0",
           atmosphereTags: [],
+          metadata: {},
         })
         .returning();
       restaurantRow = newRestaurant;
@@ -121,6 +123,7 @@ export class RestaurantsService {
         price_level_avg: Number(restaurantRow.priceLevelAvg),
         dominant_tags: restaurantRow.atmosphereTags || [],
       },
+      metadata: restaurantRow.metadata,
     };
 
     return {

@@ -176,6 +176,7 @@ export class SocialService {
         is_following: isFollowing,
         is_friend: isFriend,
         gourme_points: u.gourmePoints,
+        metadata: u.metadata,
       };
     });
   }

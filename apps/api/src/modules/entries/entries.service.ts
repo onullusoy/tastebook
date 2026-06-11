@@ -129,6 +129,7 @@ export class EntriesService {
       likes_count: entry.likesCount,
       comments_count: entry.commentsCount,
       is_liked: isLiked,
+      metadata: entry.metadata,
       created_at: entry.createdAt.toISOString(),
     };
   }
@@ -269,6 +270,7 @@ export class EntriesService {
         notes: data.notes ?? null,
         visibility: data.visibility ?? "public",
         listId: data.list_id ?? null,
+        metadata: data.metadata ?? {},
       })
       .returning();
 
@@ -372,6 +374,7 @@ export class EntriesService {
     if (data.rating_value !== undefined) updateData.ratingValue = data.rating_value;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.metadata !== undefined) updateData.metadata = data.metadata;
     if (data.list_id !== undefined) {
       await this.verifyListAccess(data.list_id, userId);
       updateData.listId = data.list_id;
@@ -546,6 +549,7 @@ export class EntriesService {
         likes_count: entry.likesCount,
         comments_count: entry.commentsCount,
         is_liked: likedEntryIds.has(entry.id),
+        metadata: entry.metadata,
         created_at: entry.createdAt.toISOString(),
       };
     });
