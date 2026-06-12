@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api-client";
-import { ApiResponse } from "@tastebook/shared/api-types";
+import { ApiResponse, ListResponse } from "@tastebook/shared/api-types";
 
 export interface CityStatsResponse {
   total_restaurants: number;
@@ -66,6 +66,20 @@ export function useCityGourmetRankings(cityName: string, scope: "public" | "frie
       return res.data;
     },
     enabled: !!cityName && (scope === "public" || isAuthenticated),
+    staleTime: 30000,
+  });
+}
+
+export function useCityLists(cityName: string, filter: "public" | "following" = "public") {
+  return useQuery<ListResponse[]>({
+    queryKey: ["cities", "lists", cityName, filter],
+    queryFn: async () => {
+      const res = await api.fetch<ApiResponse<ListResponse[]>>(
+        `/cities/${encodeURIComponent(cityName)}/lists?filter=${filter}`
+      );
+      return res.data;
+    },
+    enabled: !!cityName,
     staleTime: 30000,
   });
 }

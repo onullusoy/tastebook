@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { EntryResponse } from "@tastebook/shared/api-types";
 import { EntryCard } from "./EntryCard";
+import { ListEntryCard } from "./ListEntryCard";
 import { Spinner } from "../ui/Spinner";
 import { EmptyState } from "../ui/EmptyState";
 
@@ -69,7 +70,11 @@ export const FeedList = ({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-6 max-w-xl mx-auto w-full">
         {entries.map((entry) => (
-          <EntryCard key={entry.id} entry={entry} />
+          entry.metadata?.is_list === true ? (
+            <ListEntryCard key={entry.id} entry={entry} />
+          ) : (
+            <EntryCard key={entry.id} entry={entry} />
+          )
         ))}
       </div>
 

@@ -6,10 +6,10 @@ import { useToastStore } from "../../stores/toast-store";
 import { Spinner } from "../ui/Spinner";
 
 interface AddToListButtonProps {
-  entryId: string;
+  restaurantId: string;
 }
 
-export const AddToListButton = ({ entryId }: AddToListButtonProps) => {
+export const AddToListButton = ({ restaurantId }: AddToListButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { data: lists, isLoading } = useUserLists();
   const addToList = useAddToList();
@@ -17,7 +17,7 @@ export const AddToListButton = ({ entryId }: AddToListButtonProps) => {
 
   const handleAdd = async (listId: string, listTitle: string) => {
     try {
-      await addToList.mutateAsync({ listId, entryId });
+      await addToList.mutateAsync({ listId, restaurantId });
       addToast(`Added to list "${listTitle}"!`, "success");
       setIsOpen(false);
     } catch (err: any) {

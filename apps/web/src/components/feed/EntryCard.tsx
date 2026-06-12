@@ -310,7 +310,10 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
                               try {
                                 await addToListMutation.mutateAsync({
                                   listId: list.id,
-                                  entryId: entry.id,
+                                  restaurantId: entry.google_place_id!,
+                                  name: entry.restaurant_name,
+                                  city: entry.city,
+                                  country: entry.country,
                                 });
                                 addToast(`Added to list "${list.title}"!`, "success");
                                 setMenuOpen(false);

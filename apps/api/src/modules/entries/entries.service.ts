@@ -1,4 +1,4 @@
-import { createDb, tasteEntries, users, follows, entryMedia, foodItems, lists, listItems, listCollaborators, restaurants, entryLikes, entryComments, commentLikes } from "@tastebook/db";
+import { createDb, tasteEntries, users, follows, entryMedia, foodItems, lists, listItems, listCollaborators, restaurants, entryLikes, entryComments, commentLikes, listLikes } from "@tastebook/db";
 import { eq, and, or, inArray, desc, lt, sql, ne } from "drizzle-orm";
 import { NotFoundError, ForbiddenError, ValidationError } from "../../shared/errors";
 import type { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/schemas/entries";
@@ -89,16 +89,45 @@ export class EntriesService {
       order_index: fi.orderIndex,
     }));
 
-    // Check if entry is liked by viewer
+    // Resolve likes count and liked status based on whether it is a list post
+    let likesCount = entry.likesCount;
     let isLiked = false;
-    if (viewerId) {
-      const likeRecord = await this.db.query.entryLikes.findFirst({
-        where: and(
-          eq(entryLikes.entryId, entry.id),
-          eq(entryLikes.userId, viewerId)
-        )
-      });
-      isLiked = !!likeRecord;
+
+    if (entry.listId) {
+      const [listLikesCountResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(listLikes)
+        .where(eq(listLikes.listId, entry.listId));
+      likesCount = listLikesCountResult?.count ?? 0;
+
+      if (viewerId) {
+        const likeRecord = await this.db.query.listLikes.findFirst({
+          where: and(
+            eq(listLikes.listId, entry.listId),
+            eq(listLikes.userId, viewerId)
+          )
+        });
+        isLiked = !!likeRecord;
+      }
+    } else {
+      if (viewerId) {
+        const likeRecord = await this.db.query.entryLikes.findFirst({
+          where: and(
+            eq(entryLikes.entryId, entry.id),
+            eq(entryLikes.userId, viewerId)
+          )
+        });
+        isLiked = !!likeRecord;
+      }
+    }
+
+    let itemCount = 0;
+    if (entry.listId) {
+      const [listItemsCountResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(listItems)
+        .where(eq(listItems.listId, entry.listId));
+      itemCount = listItemsCountResult?.count ?? 0;
     }
 
     return {
@@ -126,10 +155,13 @@ export class EntriesService {
       visibility: entry.visibility as "public" | "friends" | "private",
       media: mediaList,
       list_id: entry.listId,
-      likes_count: entry.likesCount,
+      likes_count: likesCount,
       comments_count: entry.commentsCount,
       is_liked: isLiked,
-      metadata: entry.metadata,
+      metadata: entry.metadata ? {
+        ...entry.metadata,
+        item_count: itemCount,
+      } : null,
       created_at: entry.createdAt.toISOString(),
     };
   }
@@ -293,18 +325,31 @@ export class EntriesService {
 
     // Auto-add to list if list_id provided
     if (data.list_id) {
-      // Check if entry already in list (shouldn't be, it's new)
-      const [maxOrderResult] = await this.db
-        .select({ maxOrder: sql<number>`COALESCE(max(order_index), -1)::int` })
-        .from(listItems)
-        .where(eq(listItems.listId, data.list_id));
-      const nextOrder = (maxOrderResult?.maxOrder ?? -1) + 1;
+      if (!newEntry.googlePlaceId) {
+        throw new ValidationError("Cannot add to list: entry must be associated with a restaurant.");
+      }
 
-      await this.db.insert(listItems).values({
-        listId: data.list_id,
-        entryId: newEntry.id,
-        orderIndex: nextOrder,
+      // Check if this restaurant is already in the list to avoid unique constraint violations
+      const existingItem = await this.db.query.listItems.findFirst({
+        where: and(
+          eq(listItems.listId, data.list_id),
+          eq(listItems.restaurantId, newEntry.googlePlaceId)
+        ),
       });
+
+      if (!existingItem) {
+        const [maxOrderResult] = await this.db
+          .select({ maxOrder: sql<number>`COALESCE(max(order_index), -1)::int` })
+          .from(listItems)
+          .where(eq(listItems.listId, data.list_id));
+        const nextOrder = (maxOrderResult?.maxOrder ?? -1) + 1;
+
+        await this.db.insert(listItems).values({
+          listId: data.list_id,
+          restaurantId: newEntry.googlePlaceId,
+          orderIndex: nextOrder,
+        });
+      }
     }
 
     if (newEntry.googlePlaceId) {
@@ -498,6 +543,45 @@ export class EntriesService {
       likes.forEach(l => likedEntryIds.add(l.entryId));
     }
 
+    const listIds = entries.map(e => e.listId).filter(Boolean) as string[];
+
+    // Batch fetch list likes counts
+    const listLikesCounts = new Map<string, number>();
+    if (listIds.length > 0) {
+      const counts = await this.db
+        .select({ listId: listLikes.listId, count: sql<number>`count(*)::int` })
+        .from(listLikes)
+        .where(inArray(listLikes.listId, listIds))
+        .groupBy(listLikes.listId);
+      counts.forEach(c => listLikesCounts.set(c.listId, c.count));
+    }
+
+    // Batch fetch list likes for the viewer
+    const likedListIds = new Set<string>();
+    if (viewerId && listIds.length > 0) {
+      const likes = await this.db
+        .select({ listId: listLikes.listId })
+        .from(listLikes)
+        .where(
+          and(
+            eq(listLikes.userId, viewerId),
+            inArray(listLikes.listId, listIds)
+          )
+        );
+      likes.forEach(l => likedListIds.add(l.listId));
+    }
+
+    // Batch fetch list items counts
+    const listItemsCounts = new Map<string, number>();
+    if (listIds.length > 0) {
+      const counts = await this.db
+        .select({ listId: listItems.listId, count: sql<number>`count(*)::int` })
+        .from(listItems)
+        .where(inArray(listItems.listId, listIds))
+        .groupBy(listItems.listId);
+      counts.forEach(c => listItemsCounts.set(c.listId, c.count));
+    }
+
     return entries.map(entry => {
       const userRecord = userMap.get(entry.userId);
       const mappedUser = {
@@ -546,10 +630,13 @@ export class EntriesService {
         visibility: entry.visibility as "public" | "friends" | "private",
         media: mediaList,
         list_id: entry.listId,
-        likes_count: entry.likesCount,
+        likes_count: entry.listId ? (listLikesCounts.get(entry.listId) ?? 0) : entry.likesCount,
         comments_count: entry.commentsCount,
-        is_liked: likedEntryIds.has(entry.id),
-        metadata: entry.metadata,
+        is_liked: entry.listId ? likedListIds.has(entry.listId) : likedEntryIds.has(entry.id),
+        metadata: entry.metadata ? {
+          ...entry.metadata,
+          item_count: entry.listId ? (listItemsCounts.get(entry.listId) ?? 0) : 0,
+        } : null,
         created_at: entry.createdAt.toISOString(),
       };
     });

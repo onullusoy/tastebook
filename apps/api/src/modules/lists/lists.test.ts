@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, truncateTables, createTestUserWithAuth } from "../../../test/helpers/setup";
-import { tasteEntries, follows, lists, listItems } from "@tastebook/db";
+import { follows, lists, listItems, restaurants, listLikes } from "@tastebook/db";
 import { eq } from "drizzle-orm";
+import { normalizeCityName } from "@tastebook/shared";
 
 describe("Lists Module Integration Tests", () => {
   let app: FastifyInstance;
@@ -28,17 +29,19 @@ describe("Lists Module Integration Tests", () => {
     await establishFollow(userBId, userAId);
   }
 
-  async function createEntry(userId: string, name: string) {
+  async function createRestaurant(placeId: string, name: string) {
     const [inserted] = await app.db
-      .insert(tasteEntries)
+      .insert(restaurants)
       .values({
-        userId,
-        restaurantName: name,
+        googlePlaceId: placeId,
+        name,
         city: "City",
         country: "Country",
-        priceLevel: 3,
-        rating: 5,
-        visibility: "public",
+        ratingAvg: "4.5",
+        ratingCount: 10,
+        priceLevelAvg: "2.0",
+        atmosphereTags: ["casual"],
+        metadata: {},
       })
       .returning();
     return inserted;
@@ -63,6 +66,7 @@ describe("Lists Module Integration Tests", () => {
         title: "Top Burgers",
         description: "Best burgers in town",
         visibility: "public",
+        metadata: { cities: ["Izmir", "Kiel"] }
       },
     });
     expect(res.statusCode).toBe(201);
@@ -70,9 +74,10 @@ describe("Lists Module Integration Tests", () => {
     expect(body.data.title).toBe("Top Burgers");
     expect(body.data.visibility).toBe("public");
     expect(body.data.user.id).toBe(alice.user.id);
+    expect(body.data.metadata.cities).toEqual(["Izmir", "Kiel"]);
   });
 
-  it("3. POST /lists - validation failure (empty title) -> 400 or 422", async () => {
+  it("3. POST /lists - validation failure (empty title) -> 422", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const res = await app.inject({
       method: "POST",
@@ -300,16 +305,18 @@ describe("Lists Module Integration Tests", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  // ===== Restaurant List Item Tests =====
+
   it("17. POST /lists/:id/items - unauthorized -> 401", async () => {
     const res = await app.inject({
       method: "POST",
       url: "/lists/00000000-0000-0000-0000-000000000000/items",
-      payload: { entry_id: "00000000-0000-0000-0000-000000000000" },
+      payload: { restaurant_id: "place123" },
     });
     expect(res.statusCode).toBe(401);
   });
 
-  it("18. POST /lists/:id/items - add entry to own list -> 201", async () => {
+  it("18. POST /lists/:id/items - add restaurant to own list -> 201", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const [list] = await app.db.insert(lists).values({
       userId: alice.user.id,
@@ -317,20 +324,20 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry = await createEntry(alice.user.id, "Tacos");
+    const restaurant = await createRestaurant("place123", "Tacos");
 
     const res = await app.inject({
       method: "POST",
       url: `/lists/${list.id}/items`,
       headers: alice.headers,
       payload: {
-        entry_id: entry.id,
+        restaurant_id: restaurant.googlePlaceId,
       },
     });
     expect(res.statusCode).toBe(201);
   });
 
-  it("19. POST /lists/:id/items - add entry to someone else's list -> 403", async () => {
+  it("19. POST /lists/:id/items - add restaurant to someone else's list -> 403", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     const [list] = await app.db.insert(lists).values({
@@ -339,20 +346,20 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry = await createEntry(alice.user.id, "Tacos");
+    const restaurant = await createRestaurant("place123", "Tacos");
 
     const res = await app.inject({
       method: "POST",
       url: `/lists/${list.id}/items`,
       headers: alice.headers,
       payload: {
-        entry_id: entry.id,
+        restaurant_id: restaurant.googlePlaceId,
       },
     });
     expect(res.statusCode).toBe(403);
   });
 
-  it("20. POST /lists/:id/items - add same entry again -> 409 (ConflictError)", async () => {
+  it("20. POST /lists/:id/items - add same restaurant again -> 409 (ConflictError)", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const [list] = await app.db.insert(lists).values({
       userId: alice.user.id,
@@ -360,11 +367,11 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry = await createEntry(alice.user.id, "Sushi");
+    const restaurant = await createRestaurant("place123", "Sushi");
 
     await app.db.insert(listItems).values({
       listId: list.id,
-      entryId: entry.id,
+      restaurantId: restaurant.googlePlaceId,
       orderIndex: 0,
     });
 
@@ -373,7 +380,7 @@ describe("Lists Module Integration Tests", () => {
       url: `/lists/${list.id}/items`,
       headers: alice.headers,
       payload: {
-        entry_id: entry.id,
+        restaurant_id: restaurant.googlePlaceId,
       },
     });
     expect(res.statusCode).toBe(409);
@@ -388,27 +395,27 @@ describe("Lists Module Integration Tests", () => {
     }).returning();
 
     for (let i = 0; i < 100; i++) {
-      const entry = await createEntry(alice.user.id, `Dish ${i}`);
+      const rest = await createRestaurant(`place_${i}`, `Dish ${i}`);
       await app.db.insert(listItems).values({
         listId: list.id,
-        entryId: entry.id,
+        restaurantId: rest.googlePlaceId,
         orderIndex: i,
       });
     }
 
-    const finalEntry = await createEntry(alice.user.id, "Excess");
+    const finalRestaurant = await createRestaurant("place_excess", "Excess");
     const res = await app.inject({
       method: "POST",
       url: `/lists/${list.id}/items`,
       headers: alice.headers,
       payload: {
-        entry_id: finalEntry.id,
+        restaurant_id: finalRestaurant.googlePlaceId,
       },
     });
     expect(res.statusCode).toBe(422);
   });
 
-  it("22. DELETE /lists/:id/items/:entryId - remove item from own list -> 204", async () => {
+  it("22. DELETE /lists/:id/items/:restaurantId - remove item from own list -> 204", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const [list] = await app.db.insert(lists).values({
       userId: alice.user.id,
@@ -416,22 +423,22 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry = await createEntry(alice.user.id, "Soup");
+    const restaurant = await createRestaurant("place123", "Soup");
     await app.db.insert(listItems).values({
       listId: list.id,
-      entryId: entry.id,
+      restaurantId: restaurant.googlePlaceId,
       orderIndex: 0,
     });
 
     const res = await app.inject({
       method: "DELETE",
-      url: `/lists/${list.id}/items/${entry.id}`,
+      url: `/lists/${list.id}/items/${restaurant.googlePlaceId}`,
       headers: alice.headers,
     });
     expect(res.statusCode).toBe(204);
   });
 
-  it("23. DELETE /lists/:id/items/:entryId - remove item from someone else's list -> 403", async () => {
+  it("23. DELETE /lists/:id/items/:restaurantId - remove item from someone else's list -> 403", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
     const [list] = await app.db.insert(lists).values({
@@ -440,22 +447,22 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry = await createEntry(bob.user.id, "Soup");
+    const restaurant = await createRestaurant("place123", "Soup");
     await app.db.insert(listItems).values({
       listId: list.id,
-      entryId: entry.id,
+      restaurantId: restaurant.googlePlaceId,
       orderIndex: 0,
     });
 
     const res = await app.inject({
       method: "DELETE",
-      url: `/lists/${list.id}/items/${entry.id}`,
+      url: `/lists/${list.id}/items/${restaurant.googlePlaceId}`,
       headers: alice.headers,
     });
     expect(res.statusCode).toBe(403);
   });
 
-  it("24. DELETE /lists/:id/items/:entryId - remove non-existent item -> 404", async () => {
+  it("24. DELETE /lists/:id/items/:restaurantId - remove non-existent item -> 404", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const [list] = await app.db.insert(lists).values({
       userId: alice.user.id,
@@ -465,7 +472,7 @@ describe("Lists Module Integration Tests", () => {
 
     const res = await app.inject({
       method: "DELETE",
-      url: `/lists/${list.id}/items/00000000-0000-0000-0000-000000000000`,
+      url: `/lists/${list.id}/items/place_not_exist`,
       headers: alice.headers,
     });
     expect(res.statusCode).toBe(404);
@@ -479,18 +486,18 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry1 = await createEntry(alice.user.id, "Item A");
-    const entry2 = await createEntry(alice.user.id, "Item B");
+    const r1 = await createRestaurant("place_a", "Item A");
+    const r2 = await createRestaurant("place_b", "Item B");
 
-    await app.db.insert(listItems).values({ listId: list.id, entryId: entry1.id, orderIndex: 0 });
-    await app.db.insert(listItems).values({ listId: list.id, entryId: entry2.id, orderIndex: 1 });
+    await app.db.insert(listItems).values({ listId: list.id, restaurantId: r1.googlePlaceId, orderIndex: 0 });
+    await app.db.insert(listItems).values({ listId: list.id, restaurantId: r2.googlePlaceId, orderIndex: 1 });
 
     const res = await app.inject({
       method: "PATCH",
       url: `/lists/${list.id}/items/reorder`,
       headers: alice.headers,
       payload: {
-        item_ids: [entry2.id, entry1.id],
+        item_ids: [r2.googlePlaceId, r1.googlePlaceId],
       },
     });
     expect(res.statusCode).toBe(200);
@@ -501,11 +508,11 @@ describe("Lists Module Integration Tests", () => {
       headers: alice.headers,
     });
     const getBody = JSON.parse(getRes.body);
-    expect(getBody.data.items[0].id).toBe(entry2.id);
-    expect(getBody.data.items[1].id).toBe(entry1.id);
+    expect(getBody.data.items[0].google_place_id).toBe(r2.googlePlaceId);
+    expect(getBody.data.items[1].google_place_id).toBe(r1.googlePlaceId);
   });
 
-  it("26. PATCH /lists/:id/items/reorder - reorder mismatch entry ids -> 422", async () => {
+  it("26. PATCH /lists/:id/items/reorder - reorder mismatch ids -> 422", async () => {
     const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
     const [list] = await app.db.insert(lists).values({
       userId: alice.user.id,
@@ -513,15 +520,15 @@ describe("Lists Module Integration Tests", () => {
       visibility: "public",
     }).returning();
 
-    const entry1 = await createEntry(alice.user.id, "Item A");
-    await app.db.insert(listItems).values({ listId: list.id, entryId: entry1.id, orderIndex: 0 });
+    const r1 = await createRestaurant("place_a", "Item A");
+    await app.db.insert(listItems).values({ listId: list.id, restaurantId: r1.googlePlaceId, orderIndex: 0 });
 
     const res = await app.inject({
       method: "PATCH",
       url: `/lists/${list.id}/items/reorder`,
       headers: alice.headers,
       payload: {
-        item_ids: ["00000000-0000-0000-0000-000000000000"],
+        item_ids: ["place_not_exist"],
       },
     });
     expect(res.statusCode).toBe(422);
@@ -543,5 +550,110 @@ describe("Lists Module Integration Tests", () => {
     const body = JSON.parse(res.body);
     expect(body.data.length).toBe(1);
     expect(body.data[0].title).toBe("Bob Pub");
+  });
+
+  // ===== Social Layer & Likes integration tests =====
+
+  it("28. POST /lists/:id/like & DELETE /lists/:id/like -> success", async () => {
+    const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+    const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+
+    const [list] = await app.db.insert(lists).values({
+      userId: bob.user.id,
+      title: "Bob Public List",
+      visibility: "public",
+    }).returning();
+
+    // Like
+    const likeRes = await app.inject({
+      method: "POST",
+      url: `/lists/${list.id}/like`,
+      headers: alice.headers,
+    });
+    expect(likeRes.statusCode).toBe(200);
+
+    // Get detail and verify liked & count
+    const getRes1 = await app.inject({
+      method: "GET",
+      url: `/lists/${list.id}`,
+      headers: alice.headers,
+    });
+    const body1 = JSON.parse(getRes1.body);
+    expect(body1.data.likes_count).toBe(1);
+    expect(body1.data.is_liked).toBe(true);
+
+    // Unlike
+    const unlikeRes = await app.inject({
+      method: "DELETE",
+      url: `/lists/${list.id}/like`,
+      headers: alice.headers,
+    });
+    expect(unlikeRes.statusCode).toBe(200);
+
+    // Verify again
+    const getRes2 = await app.inject({
+      method: "GET",
+      url: `/lists/${list.id}`,
+      headers: alice.headers,
+    });
+    const body2 = JSON.parse(getRes2.body);
+    expect(body2.data.likes_count).toBe(0);
+    expect(body2.data.is_liked).toBe(false);
+  });
+
+  // ===== Global retrieval & Filtering integration tests =====
+
+  it("29. GET /lists - type=public & filtering by city -> 200", async () => {
+    const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+    const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+
+    await app.db.insert(lists).values({
+      userId: bob.user.id,
+      title: "Izmir Pizza Curations",
+      visibility: "public",
+      metadata: { cities: ["Izmir", "Cesme"] }
+    });
+
+    await app.db.insert(lists).values({
+      userId: bob.user.id,
+      title: "Istanbul Kebab Curations",
+      visibility: "public",
+      metadata: { cities: ["Istanbul"] }
+    });
+
+    // Public list retrieval
+    const res1 = await app.inject({
+      method: "GET",
+      url: "/lists?type=public",
+      headers: alice.headers,
+    });
+    expect(res1.statusCode).toBe(200);
+    const body1 = JSON.parse(res1.body);
+    expect(body1.data.length).toBe(2);
+
+    // Filter by city
+    const res2 = await app.inject({
+      method: "GET",
+      url: "/lists?type=public&city=Izmir",
+      headers: alice.headers,
+    });
+    expect(res2.statusCode).toBe(200);
+    const body2 = JSON.parse(res2.body);
+    expect(body2.data.length).toBe(1);
+    expect(body2.data[0].title).toBe("Izmir Pizza Curations");
+  });
+
+  // ===== City Name Normalization Tests =====
+
+  it("30. normalizeCityName - Turkish characters capitalization check", () => {
+    expect(normalizeCityName("istanbul")).toBe("İstanbul");
+    expect(normalizeCityName("İSTANBUL")).toBe("İstanbul");
+    expect(normalizeCityName("ısparta")).toBe("Isparta");
+    expect(normalizeCityName("ISPARTA")).toBe("Isparta");
+    expect(normalizeCityName("izmir")).toBe("İzmir");
+    expect(normalizeCityName("İZMİR")).toBe("İzmir");
+    expect(normalizeCityName("afyonkarahisar")).toBe("Afyonkarahisar");
+    expect(normalizeCityName("ŞANLIURFA")).toBe("Şanlıurfa");
+    expect(normalizeCityName("  muğla   bodrum  ")).toBe("Muğla Bodrum");
   });
 });

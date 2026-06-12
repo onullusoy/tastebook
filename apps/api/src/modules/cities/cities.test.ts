@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, truncateTables, createTestUserWithAuth } from "../../../test/helpers/setup";
-import { tasteEntries, follows, restaurants } from "@tastebook/db";
+import { tasteEntries, follows, restaurants, lists } from "@tastebook/db";
 import { sql } from "drizzle-orm";
 
 describe("Cities Module Integration Tests", () => {
@@ -147,5 +147,50 @@ describe("Cities Module Integration Tests", () => {
     const usernames = bodyFriends.data.map((item: any) => item.username);
     expect(usernames).toContain("alice");
     expect(usernames).toContain("bob");
+  });
+
+  it("4. GET /api/cities/:cityName/lists - returns city lists correctly with filter", async () => {
+    const alice = await createTestUserWithAuth(app, { username: "alice", email: "alice@example.com" });
+    const bob = await createTestUserWithAuth(app, { username: "bob", email: "bob@example.com" });
+    const charlie = await createTestUserWithAuth(app, { username: "charlie", email: "charlie@example.com" });
+
+    // Alice follows Bob, but not Charlie
+    await app.db.insert(follows).values({ followerId: alice.user.id, followingId: bob.user.id });
+
+    // Bob list in Paris
+    await app.db.insert(lists).values({
+      userId: bob.user.id,
+      title: "Bob's Paris Pizza",
+      visibility: "public",
+      metadata: { cities: ["Paris"] }
+    });
+
+    // Charlie list in Paris
+    await app.db.insert(lists).values({
+      userId: charlie.user.id,
+      title: "Charlie's Paris Bistro",
+      visibility: "public",
+      metadata: { cities: ["Paris"] }
+    });
+
+    // 1. Fetch public lists in Paris
+    const resPublic = await app.inject({
+      method: "GET",
+      url: `/api/cities/Paris/lists?filter=public`,
+    });
+    expect(resPublic.statusCode).toBe(200);
+    const bodyPublic = JSON.parse(resPublic.body);
+    expect(bodyPublic.data.length).toBe(2);
+
+    // 2. Fetch following lists in Paris for Alice
+    const resFollowing = await app.inject({
+      method: "GET",
+      url: `/api/cities/Paris/lists?filter=following`,
+      headers: alice.headers,
+    });
+    expect(resFollowing.statusCode).toBe(200);
+    const bodyFollowing = JSON.parse(resFollowing.body);
+    expect(bodyFollowing.data.length).toBe(1);
+    expect(bodyFollowing.data[0].title).toBe("Bob's Paris Pizza");
   });
 });

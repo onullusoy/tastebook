@@ -23,6 +23,12 @@ export default function EntryDetailsPage() {
 
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (entry?.metadata?.is_list === true && entry.metadata.list_id) {
+      router.replace(`/lists/${entry.metadata.list_id}`);
+    }
+  }, [entry, router]);
+
   const isOwner = user?.id === entry?.user.id;
 
   const handleDelete = () => {

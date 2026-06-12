@@ -91,6 +91,9 @@ export interface ListResponse {
   is_collaborative: boolean;
   metadata?: Record<string, any> | null;
   created_at: string;
+  likes_count: number;
+  is_liked?: boolean;
+  feed_entry_id?: string | null;
 }
 
 export interface AuthTokensResponse {
