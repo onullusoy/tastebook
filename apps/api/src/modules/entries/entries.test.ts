@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
 import request from "supertest";
 import { createTestApp, truncateTables, createTestUserWithAuth } from "../../../test/helpers/setup";
-import { follows, entryMedia, tasteEntries } from "@tastebook/db";
-import { eq } from "drizzle-orm";
+import { follows, entryMedia, tasteEntries, restaurants } from "@tastebook/db";
+import { eq, sql } from "drizzle-orm";
 import { TINY_JPEG } from "../../../test/helpers/fixtures";
 
 /** Helper: build a valid entry payload with sensible defaults */
@@ -588,6 +588,95 @@ describe("Taste Entries Integration Tests", () => {
         .delete(`/entries/${entryId}/comments/${commentId2}`)
         .set("Authorization", alice.headers.Authorization);
       expect(deleteSuccessRes.status).toBe(200);
+    });
+  });
+
+  describe("Fuzzy Restaurant Linking (4 cases)", () => {
+    it("✓ no google_place_id provided — entry created with synthetic restaurant id", async () => {
+      const alice = await createTestUserWithAuth(app);
+
+      const res = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send({
+          restaurant_name: "Ev Yemekleri",
+          city: "Eskişehir",
+          country: "Turkey",
+          price_level: 2,
+          rating: 7,
+          visibility: "public",
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.restaurant_name).toBe("Ev Yemekleri");
+      expect(res.body.data.city).toBe("Eskişehir");
+      // A google_place_id should have been auto-assigned (synthetic record)
+      expect(res.body.data.google_place_id).toBeTruthy();
+      expect(res.body.data.google_place_id).toContain("tastebook-manual-");
+    });
+
+    it("✓ same restaurant name submitted twice in same city — second entry reuses existing restaurant", async () => {
+      const alice = await createTestUserWithAuth(app);
+
+      // First submission creates a synthetic restaurant
+      const res1 = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "Karaköy Güllüoğlu", city: "Istanbul", country: "Turkey" }));
+      expect(res1.status).toBe(201);
+
+      // Second submission with exact same name in same city — fuzzy match >= 0.80 (exact match = 1.0)
+      const res2 = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "Karaköy Güllüoğlu", city: "Istanbul", country: "Turkey" }));
+      expect(res2.status).toBe(201);
+
+      // Both should point to the same restaurant
+      expect(res1.body.data.google_place_id).toBe(res2.body.data.google_place_id);
+    });
+
+    it("✓ same restaurant name in different cities creates separate records", async () => {
+      const alice = await createTestUserWithAuth(app);
+
+      const res1 = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "McDonald's", city: "Istanbul", country: "Turkey" }));
+
+      const res2 = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "McDonald's", city: "Ankara", country: "Turkey" }));
+
+      expect(res1.status).toBe(201);
+      expect(res2.status).toBe(201);
+      // Different cities — they should get separate restaurant records
+      expect(res1.body.data.google_place_id).not.toBe(res2.body.data.google_place_id);
+    });
+
+    it("✓ low-similarity name does not cross-link to a different restaurant in same city", async () => {
+      const alice = await createTestUserWithAuth(app);
+
+      // Create entry for "Ficcin"
+      await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "Ficcin", city: "Istanbul", country: "Turkey" }));
+
+      // Completely different name — should NOT match "Ficcin"
+      const res = await request(app.server)
+        .post("/entries")
+        .set("Authorization", alice.headers.Authorization)
+        .send(entryPayload({ restaurant_name: "Köşebaşı", city: "Istanbul", country: "Turkey" }));
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.restaurant_name).toMatch(/K\u00f6\u015feba\u015f\u0131|Kosebasi/i);
+      // Different restaurant — should have a different synthetic ID than Ficcin
+      const ficcinRestaurant = await app.db.query.restaurants.findFirst({
+        where: (r, { ilike }) => ilike(r.name, "%Ficcin%"),
+      });
+      expect(res.body.data.google_place_id).not.toBe(ficcinRestaurant?.googlePlaceId);
     });
   });
 });

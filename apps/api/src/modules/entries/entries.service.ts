@@ -6,6 +6,7 @@ import type { EntryResponse, PaginatedResponse } from "@tastebook/shared/api-typ
 import { MediaService } from "../media/media.service";
 import { encodeCursor, decodeCursor } from "../../shared/utils/cursor";
 import { recalculateUserGP } from "../../shared/utils/gourme-points";
+import crypto from "crypto";
 
 export class EntriesService {
   constructor(
@@ -35,6 +36,240 @@ export class EntriesService {
     }
 
     return { city: city || "Unknown", country: country || "Unknown", countryCode };
+  }
+
+  /**
+   * Compute a simple string similarity ratio in range [0,1] using longest common subsequence length.
+   * This is used only for the Google Places Text Search verification step to avoid extra dependencies.
+   */
+  private strSimilarity(a: string, b: string): number {
+    const s1 = a.toLowerCase().trim();
+    const s2 = b.toLowerCase().trim();
+    if (s1 === s2) return 1.0;
+    if (s1.length === 0 || s2.length === 0) return 0.0;
+    // Count matching characters (Dice's coefficient over bigrams for reasonable accuracy)
+    const getBigrams = (str: string): Map<string, number> => {
+      const bigrams = new Map<string, number>();
+      for (let i = 0; i < str.length - 1; i++) {
+        const bigram = str.slice(i, i + 2);
+        bigrams.set(bigram, (bigrams.get(bigram) ?? 0) + 1);
+      }
+      return bigrams;
+    };
+    const bigrams1 = getBigrams(s1);
+    const bigrams2 = getBigrams(s2);
+    let intersection = 0;
+    for (const [bigram, count] of bigrams1) {
+      const count2 = bigrams2.get(bigram) ?? 0;
+      intersection += Math.min(count, count2);
+    }
+    return (2 * intersection) / (s1.length + s2.length - 2);
+  }
+
+  /**
+   * Fault-tolerant restaurant resolution with three layers:
+   *  1. Fuzzy DB lookup (pg_trgm similarity >= 0.80, same city)
+   *  2. Google Places Text Search fallback (if API key available)
+   *  3. Graceful synthetic record creation
+   *
+   * Always returns a non-null googlePlaceId so entries can be properly linked.
+   */
+  private async fuzzyResolveRestaurant(params: {
+    restaurantName: string;
+    city: string;
+    country: string;
+    formattedAddress: string | null;
+  }): Promise<{
+    googlePlaceId: string;
+    restaurantName: string;
+    city: string;
+    country: string;
+    countryCode: string;
+    formattedAddress: string | null;
+  }> {
+    const { restaurantName, city, country } = params;
+    let { formattedAddress } = params;
+    const SIMILARITY_THRESHOLD = 0.80;
+
+    // ─── Layer 0: Exact case-insensitive name + city lookup ───────────────
+    // Works without pg_trgm — handles the common case where the same name is
+    // submitted again (e.g. autocomplete skipped, same restaurant re-entered).
+    try {
+      const exactMatch = await this.db.query.restaurants.findFirst({
+        where: (r, { and: $and, sql: $sql }) =>
+          $and(
+            $sql`lower(${r.name}) = lower(${restaurantName})`,
+            $sql`lower(${r.city}) = lower(${city})`
+          ),
+      });
+
+      if (exactMatch) {
+        console.info(
+          `[FuzzyResolve] Exact match found: "${exactMatch.name}" in ${exactMatch.city}`
+        );
+        return {
+          googlePlaceId: exactMatch.googlePlaceId,
+          restaurantName: exactMatch.name,
+          city: exactMatch.city,
+          country: exactMatch.country,
+          countryCode: exactMatch.countryCode,
+          formattedAddress,
+        };
+      }
+    } catch (err) {
+      console.warn("[FuzzyResolve] Exact lookup failed, skipping:", (err as Error).message);
+    }
+
+    // ─── Layer 1: Fuzzy DB lookup via pg_trgm ───────────────────────────
+    try {
+      const [fuzzyMatch] = await this.db.execute<{
+        google_place_id: string;
+        name: string;
+        city: string;
+        country: string;
+        country_code: string;
+        sim: number;
+      }>(
+        sql`SELECT google_place_id, name, city, country, country_code,
+               similarity(name, ${restaurantName}) AS sim
+            FROM restaurants
+            WHERE lower(city) = lower(${city})
+              AND similarity(name, ${restaurantName}) >= ${SIMILARITY_THRESHOLD}
+            ORDER BY sim DESC
+            LIMIT 1`
+      );
+
+      if (fuzzyMatch) {
+        console.info(
+          `[FuzzyResolve] DB match found: "${fuzzyMatch.name}" (sim=${fuzzyMatch.sim.toFixed(3)}) for input "${restaurantName}" in ${city}`
+        );
+        return {
+          googlePlaceId: fuzzyMatch.google_place_id,
+          restaurantName: fuzzyMatch.name,
+          city: fuzzyMatch.city,
+          country: fuzzyMatch.country,
+          countryCode: fuzzyMatch.country_code,
+          formattedAddress,
+        };
+      }
+    } catch (err) {
+      // pg_trgm extension may not exist in test environment — fall through gracefully
+      console.warn("[FuzzyResolve] pg_trgm lookup failed (extension missing?), skipping:", (err as Error).message);
+    }
+
+
+    // ─── Layer 2: Google Places Text Search fallback ─────────────────────
+    if (this.apiKey) {
+      try {
+        const textSearchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+        textSearchUrl.searchParams.set("query", `${restaurantName} ${city}`);
+        textSearchUrl.searchParams.set("type", "restaurant");
+        textSearchUrl.searchParams.set("key", this.apiKey);
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // 5-second timeout
+        try {
+          const res = await fetch(textSearchUrl.toString(), { signal: controller.signal });
+          clearTimeout(timeout);
+
+          if (res.ok) {
+            const data = (await res.json()) as any;
+            if (data.status === "OK" && data.results?.length > 0) {
+              const candidate = data.results[0];
+              const candidateName: string = candidate.name ?? "";
+              const sim = this.strSimilarity(restaurantName, candidateName);
+
+              if (sim >= SIMILARITY_THRESHOLD) {
+                const placeId: string = candidate.place_id;
+                let resolvedCity = city;
+                let resolvedCountry = country;
+                let resolvedCountryCode = "";
+                let resolvedAddress = formattedAddress ?? (candidate.formatted_address ?? null);
+
+                // Parse address components from text search result if available
+                if (candidate.address_components) {
+                  const parsed = this.parseAddressComponents(candidate.address_components);
+                  resolvedCity = parsed.city || city;
+                  resolvedCountry = parsed.country || country;
+                  resolvedCountryCode = parsed.countryCode;
+                }
+
+                console.info(
+                  `[FuzzyResolve] Google Places match: "${candidateName}" (sim=${sim.toFixed(3)}) → ${placeId}`
+                );
+
+                // Upsert into restaurants table
+                await this.db
+                  .insert(restaurants)
+                  .values({
+                    googlePlaceId: placeId,
+                    name: candidateName,
+                    city: resolvedCity,
+                    country: resolvedCountry,
+                    countryCode: resolvedCountryCode,
+                    ratingAvg: "0.0",
+                    ratingCount: 0,
+                    priceLevelAvg: "0.0",
+                    atmosphereTags: [],
+                  })
+                  .onConflictDoNothing();
+
+                return {
+                  googlePlaceId: placeId,
+                  restaurantName: candidateName,
+                  city: resolvedCity,
+                  country: resolvedCountry,
+                  countryCode: resolvedCountryCode,
+                  formattedAddress: resolvedAddress,
+                };
+              } else {
+                console.info(
+                  `[FuzzyResolve] Google Places candidate "${candidateName}" below threshold (sim=${sim.toFixed(3)}), falling back.`
+                );
+              }
+            }
+          }
+        } catch (fetchErr: any) {
+          if (fetchErr.name === "AbortError") {
+            console.warn("[FuzzyResolve] Google Places Text Search timed out.");
+          } else {
+            throw fetchErr;
+          }
+        }
+      } catch (err) {
+        console.error("[FuzzyResolve] Google Places Text Search failed, falling back:", (err as Error).message);
+      }
+    }
+
+    // ─── Layer 3: Graceful fallback — create a synthetic canonical record ─
+    const syntheticId = `tastebook-manual-${crypto.randomUUID()}`;
+    console.info(
+      `[FuzzyResolve] No confident match found for "${restaurantName}" in ${city}. Creating synthetic record: ${syntheticId}`
+    );
+
+    await this.db
+      .insert(restaurants)
+      .values({
+        googlePlaceId: syntheticId,
+        name: restaurantName,
+        city,
+        country,
+        countryCode: "",
+        ratingAvg: "0.0",
+        ratingCount: 0,
+        priceLevelAvg: "0.0",
+        atmosphereTags: [],
+      })
+      .onConflictDoNothing();
+
+    return {
+      googlePlaceId: syntheticId,
+      restaurantName,
+      city,
+      country,
+      countryCode: "",
+      formattedAddress,
+    };
   }
 
   private async fetchEntryResponse(entryId: string, viewerId?: string): Promise<EntryResponse> {
@@ -221,6 +456,7 @@ export class EntriesService {
     let country = data.country;
     let countryCode = "";
     let formattedAddress = data.formatted_address ?? null;
+    let resolvedGooglePlaceId: string | null = data.google_place_id ?? null;
 
     if (data.google_place_id) {
       // 1. Check database cache first in restaurants table
@@ -281,6 +517,20 @@ export class EntriesService {
           })
           .onConflictDoNothing();
       }
+    } else {
+      // No google_place_id provided — run fault-tolerant fuzzy matching pipeline
+      const resolved = await this.fuzzyResolveRestaurant({
+        restaurantName,
+        city,
+        country,
+        formattedAddress,
+      });
+      resolvedGooglePlaceId = resolved.googlePlaceId;
+      restaurantName = resolved.restaurantName;
+      city = resolved.city;
+      country = resolved.country;
+      countryCode = resolved.countryCode;
+      formattedAddress = resolved.formattedAddress;
     }
 
     const [newEntry] = await this.db
@@ -290,7 +540,7 @@ export class EntriesService {
         restaurantName,
         city,
         country,
-        googlePlaceId: data.google_place_id ?? null,
+        googlePlaceId: resolvedGooglePlaceId,
         formattedAddress,
         atmosphereTags: data.atmosphere_tags ?? [],
         priceLevel: data.price_level,
