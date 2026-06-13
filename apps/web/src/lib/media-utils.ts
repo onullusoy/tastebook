@@ -6,19 +6,24 @@ export function resolveMediaUrl(url: string | null | undefined): string {
   }
   
   const hostname = window.location.hostname;
-  if (!hostname || hostname === "localhost" || hostname === "127.0.0.1") {
-    return url;
-  }
+  let resolvedUrl = url;
   
   try {
     const parsed = new URL(url);
     if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
-      parsed.hostname = hostname;
-      return parsed.toString();
+      if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+        parsed.hostname = hostname;
+        resolvedUrl = parsed.toString();
+      }
     }
   } catch (e) {
     // Fallback if URL is relative or invalid
   }
   
-  return url;
+  // If the URL is hosted on ngrok, proxy it through Next.js image optimizer to bypass browser warnings
+  if (resolvedUrl.includes("ngrok-free.dev") || resolvedUrl.includes("ngrok.io")) {
+    return `/_next/image?url=${encodeURIComponent(resolvedUrl)}&w=640&q=75`;
+  }
+  
+  return resolvedUrl;
 }
