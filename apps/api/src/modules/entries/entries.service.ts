@@ -405,10 +405,86 @@ export class EntriesService {
       updatedAt: new Date(),
     };
 
+    if (data.google_place_id !== undefined) {
+      if (data.google_place_id === null) {
+        updateData.googlePlaceId = null;
+      } else {
+        // Find or create restaurant
+        const existingRestaurant = await this.db.query.restaurants.findFirst({
+          where: eq(restaurants.googlePlaceId, data.google_place_id),
+        });
+
+        if (!existingRestaurant) {
+          let restaurantName = data.restaurant_name ?? entry.restaurantName;
+          let city = data.city ?? entry.city;
+          let country = data.country ?? entry.country;
+          let countryCode = "US"; // default fallback
+          let formattedAddress = data.formatted_address ?? entry.formattedAddress ?? undefined;
+
+          if (this.apiKey) {
+            try {
+              const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+              url.searchParams.set("place_id", data.google_place_id);
+              url.searchParams.set("fields", "name,address_components,formatted_address");
+              url.searchParams.set("key", this.apiKey);
+
+              const res = await fetch(url.toString());
+              if (res.ok) {
+                const resData = (await res.json()) as any;
+                if (resData.status === "OK" && resData.result) {
+                  const result = resData.result;
+                  restaurantName = result.name || restaurantName;
+                  formattedAddress = result.formatted_address || formattedAddress;
+                  
+                  if (result.address_components) {
+                    const parsed = this.parseAddressComponents(result.address_components);
+                    city = parsed.city;
+                    country = parsed.country;
+                    countryCode = parsed.countryCode;
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Failed to fetch Google Place Details during update:", err);
+            }
+          }
+
+          // Initialize the restaurant record in the table first so the foreign key doesn't fail
+          await this.db
+            .insert(restaurants)
+            .values({
+              googlePlaceId: data.google_place_id,
+              name: restaurantName,
+              city,
+              country,
+              countryCode,
+              ratingAvg: "0.0",
+              ratingCount: 0,
+              priceLevelAvg: "0.0",
+              atmosphereTags: [],
+            })
+            .onConflictDoNothing();
+
+          if (data.restaurant_name === undefined) {
+            updateData.restaurantName = restaurantName;
+          }
+          if (data.city === undefined) {
+            updateData.city = city;
+          }
+          if (data.country === undefined) {
+            updateData.country = country;
+          }
+          if (data.formatted_address === undefined && formattedAddress !== undefined) {
+            updateData.formattedAddress = formattedAddress;
+          }
+        }
+        updateData.googlePlaceId = data.google_place_id;
+      }
+    }
+
     if (data.restaurant_name !== undefined) updateData.restaurantName = data.restaurant_name;
     if (data.city !== undefined) updateData.city = data.city;
     if (data.country !== undefined) updateData.country = data.country;
-    if (data.google_place_id !== undefined) updateData.googlePlaceId = data.google_place_id;
     if (data.formatted_address !== undefined) updateData.formattedAddress = data.formatted_address;
     if (data.atmosphere_tags !== undefined) updateData.atmosphereTags = data.atmosphere_tags;
     if (data.price_level !== undefined) updateData.priceLevel = data.price_level;

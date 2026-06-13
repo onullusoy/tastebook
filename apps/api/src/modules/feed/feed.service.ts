@@ -312,7 +312,18 @@ export class FeedService {
       );
     }
 
-    const conditions = [eq(tasteEntries.visibility, "public")];
+    const conditions = [];
+    if (viewerId) {
+      conditions.push(
+        or(
+          eq(tasteEntries.visibility, "public"),
+          eq(tasteEntries.userId, viewerId)
+        )
+      );
+    } else {
+      conditions.push(eq(tasteEntries.visibility, "public"));
+    }
+    
     if (cursorCondition) {
       conditions.push(cursorCondition);
     }
