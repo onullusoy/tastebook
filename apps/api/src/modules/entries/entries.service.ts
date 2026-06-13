@@ -177,9 +177,9 @@ export class EntriesService {
             if (data.status === "OK" && data.results?.length > 0) {
               const candidate = data.results[0];
               const candidateName: string = candidate.name ?? "";
-              const sim = this.strSimilarity(restaurantName, candidateName);
+              const nameSim = this.strSimilarity(restaurantName, candidateName);
 
-              if (sim >= SIMILARITY_THRESHOLD) {
+              if (nameSim >= SIMILARITY_THRESHOLD) {
                 const placeId: string = candidate.place_id;
                 let resolvedCity = city;
                 let resolvedCountry = country;
@@ -194,40 +194,54 @@ export class EntriesService {
                   resolvedCountryCode = parsed.countryCode;
                 }
 
-                console.info(
-                  `[FuzzyResolve] Google Places match: "${candidateName}" (sim=${sim.toFixed(3)}) → ${placeId}`
-                );
+                // ── City guard: respect the user's explicit city choice ──────────
+                // If the Google Places result is in a completely different city than
+                // what the user typed, we must NOT link them — they are different
+                // restaurants sharing a name in different locations.
+                // E.g. "Johns Burger" in Sivas ≠ "Johns Burger" in Kiel.
+                const citySim = this.strSimilarity(city, resolvedCity);
+                if (citySim < 0.50) {
+                  console.info(
+                    `[FuzzyResolve] Google Places city mismatch: user said "${city}", result is "${resolvedCity}" (citySim=${citySim.toFixed(3)}). Skipping.`
+                  );
+                  // Fall through to Layer 3 — create a fresh record with the user's exact data
+                } else {
+                  console.info(
+                    `[FuzzyResolve] Google Places match: "${candidateName}" (nameSim=${nameSim.toFixed(3)}, citySim=${citySim.toFixed(3)}) → ${placeId}`
+                  );
 
-                // Upsert into restaurants table
-                await this.db
-                  .insert(restaurants)
-                  .values({
+                  // Upsert into restaurants table
+                  await this.db
+                    .insert(restaurants)
+                    .values({
+                      googlePlaceId: placeId,
+                      name: candidateName,
+                      city: resolvedCity,
+                      country: resolvedCountry,
+                      countryCode: resolvedCountryCode,
+                      ratingAvg: "0.0",
+                      ratingCount: 0,
+                      priceLevelAvg: "0.0",
+                      atmosphereTags: [],
+                    })
+                    .onConflictDoNothing();
+
+                  return {
                     googlePlaceId: placeId,
-                    name: candidateName,
+                    restaurantName: candidateName,
                     city: resolvedCity,
                     country: resolvedCountry,
                     countryCode: resolvedCountryCode,
-                    ratingAvg: "0.0",
-                    ratingCount: 0,
-                    priceLevelAvg: "0.0",
-                    atmosphereTags: [],
-                  })
-                  .onConflictDoNothing();
-
-                return {
-                  googlePlaceId: placeId,
-                  restaurantName: candidateName,
-                  city: resolvedCity,
-                  country: resolvedCountry,
-                  countryCode: resolvedCountryCode,
-                  formattedAddress: resolvedAddress,
-                };
+                    formattedAddress: resolvedAddress,
+                  };
+                }
               } else {
                 console.info(
-                  `[FuzzyResolve] Google Places candidate "${candidateName}" below threshold (sim=${sim.toFixed(3)}), falling back.`
+                  `[FuzzyResolve] Google Places candidate "${candidateName}" below name threshold (nameSim=${nameSim.toFixed(3)}), falling back.`
                 );
               }
             }
+
           }
         } catch (fetchErr: any) {
           if (fetchErr.name === "AbortError") {
