@@ -89,13 +89,19 @@ export async function buildApp() {
   await app.register(redisPlugin);
   await app.register(s3Plugin);
 
-  await app.register(multipart, {
-    limits: {
-      fileSize: 10 * 1024 * 1024,
-    },
-  });
+  await app.register(adminPlugin);
 
-  await app.register(formbody);
+  if (!app.hasRequestDecorator("isMultipart")) {
+    await app.register(multipart, {
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+    });
+  }
+
+  if (!app.hasContentTypeParser("application/x-www-form-urlencoded")) {
+    await app.register(formbody);
+  }
 
   if (!app.hasRequestDecorator("cookies")) {
     await app.register(cookie, {
@@ -109,8 +115,6 @@ export async function buildApp() {
   await app.register(jwt, {
     secret: app.config.JWT_SECRET,
   });
-
-  await app.register(adminPlugin);
 
   app.setErrorHandler(errorHandler);
 
