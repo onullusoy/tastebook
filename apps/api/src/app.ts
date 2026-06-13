@@ -55,26 +55,51 @@ export async function buildApp() {
 
   await app.register(cors, {
     origin: (origin, cb) => {
-      // Allow all origins in dev, or specific WEB_URL
-      if (!origin || process.env.NODE_ENV !== "production") {
+      if (!origin) {
         cb(null, true);
         return;
       }
 
-      const allowedOrigins = [
+      const sanitize = (url: string) => url.replace(/\/$/, "").toLowerCase();
+      const sanitizedOrigin = sanitize(origin);
+
+      // Always allow localhost in non-production
+      if (process.env.NODE_ENV !== "production" || sanitizedOrigin.startsWith("http://localhost:") || sanitizedOrigin.startsWith("http://127.0.0.1:")) {
+        cb(null, true);
+        return;
+      }
+
+      const rawOrigins = [
         app.config.WEB_URL,
+        process.env.WEB_URL,
         "https://tastebook-web.vercel.app",
-      ];
+        "http://localhost:3000"
+      ].filter(Boolean) as string[];
 
-      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      const sanitizedAllowed = rawOrigins.map(sanitize);
+
+      const isAllowed = sanitizedAllowed.includes(sanitizedOrigin) || 
+                        sanitizedOrigin.endsWith(".vercel.app") ||
+                        (sanitizedOrigin.includes("ngrok") && process.env.NODE_ENV !== "production");
+
+      if (isAllowed) {
         cb(null, true);
-        return;
+      } else {
+        app.log.warn(`CORS blocked for origin: ${origin}`);
+        cb(null, false);
       }
-
-      cb(null, false);
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "Bypass-Tunnel-Reminder", "ngrok-skip-browser-warning"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type", 
+      "Authorization", 
+      "Bypass-Tunnel-Reminder", 
+      "ngrok-skip-browser-warning",
+      "Origin",
+      "Accept",
+      "X-Requested-With"
+    ],
   });
   await app.register(dbPlugin);
   await app.register(redisPlugin);
