@@ -35,22 +35,6 @@ export async function buildApp() {
       return url || "/";
     } : undefined,
   });
-
-  // Prevent duplicate plugin registrations (e.g. from AdminJS)
-  const registeredPlugins = new Set<string>();
-  const originalRegister = app.register;
-  (app as any).register = function (plugin: any, opts: any) {
-    const pluginName = plugin[Symbol.for("fastify.display-name")] || plugin.name;
-    if (pluginName && registeredPlugins.has(pluginName)) {
-      app.log.info(`Skipping duplicate registration of plugin: ${pluginName}`);
-      return this;
-    }
-    if (pluginName) {
-      registeredPlugins.add(pluginName);
-    }
-    return originalRegister.call(this, plugin, opts);
-  };
-
   await app.register(configPlugin);
 
   await app.register(cors, {
