@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { resolveMediaUrl } from "../../../../../lib/media-utils";
 import { useParams, useRouter } from "next/navigation";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useEntry, useUpdateEntry } from "../../../../../hooks/use-entries";
@@ -411,7 +413,7 @@ export default function EditEntryPage() {
               {entry.media.map((item) => (
                 <div key={item.id} className="relative h-20 w-28 flex-shrink-0 rounded-xl overflow-hidden border border-warm-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.thumbnail_url} alt="Uploaded media" className="h-full w-full object-cover" />
+                  <img src={resolveMediaUrl(item.thumbnail_url)} alt="Uploaded media" className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
