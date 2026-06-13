@@ -31,6 +31,7 @@ export function useCreateEntry() {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
@@ -53,6 +54,7 @@ export function useUpdateEntry(id: string) {
       queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["entry", id] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
@@ -91,6 +93,7 @@ export function useDeleteEntry() {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       queryClient.invalidateQueries({ queryKey: ["city-feed"] });
       queryClient.invalidateQueries({ queryKey: ["user-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
@@ -180,6 +183,7 @@ export function useToggleLike(entryId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["entry-counters", entryId] });
       queryClient.invalidateQueries({ queryKey: ["entry", entryId] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
@@ -228,6 +232,7 @@ export function useAddComment(entryId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["entry-counters", entryId] });
       queryClient.invalidateQueries({ queryKey: ["entry", entryId] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
@@ -263,6 +268,7 @@ export function useDeleteComment(entryId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["entry-counters", entryId] });
       queryClient.invalidateQueries({ queryKey: ["entry", entryId] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }
