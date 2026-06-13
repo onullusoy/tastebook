@@ -1,4 +1,7 @@
 import "fastify";
+import "@fastify/jwt";
+import "@fastify/cookie";
+import "@fastify/multipart";
 import type { Config } from "../shared/plugins/config";
 import type { createDb } from "@tastebook/db";
 import type Redis from "ioredis";

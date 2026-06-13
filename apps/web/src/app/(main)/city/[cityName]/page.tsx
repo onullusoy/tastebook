@@ -1,22 +1,26 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCityFeed } from "../../../../hooks/use-feed";
 import { FeedList } from "../../../../components/feed/FeedList";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { Spinner } from "../../../../components/ui/Spinner";
 import { Button } from "../../../../components/ui/Button";
+import { ListCover } from "../../../../components/lists/ListCover";
 import { useAuthStore } from "../../../../stores/auth-store";
 import {
   useCityStats,
   useCityRestaurantRankings,
   useCityGourmetRankings,
+  useCityLists,
 } from "../../../../hooks/use-cities";
 
-type MainTab = "feed" | "restaurants" | "gourmets";
+type MainTab = "feed" | "restaurants" | "gourmets" | "lists";
 type RestaurantSubTab = "popularity" | "rating";
 type GourmetSubTab = "public" | "friends";
+type ListsSubTab = "public" | "following";
 
 export default function CityFeedPage() {
   const params = useParams();
@@ -32,6 +36,7 @@ export default function CityFeedPage() {
   const [feedScope, setFeedScope] = useState<"following" | "public">("following");
   const [restaurantSort, setRestaurantSort] = useState<RestaurantSubTab>("popularity");
   const [gourmetScope, setGourmetScope] = useState<GourmetSubTab>("public");
+  const [listsScope, setListsScope] = useState<ListsSubTab>("public");
 
   // Query Hooks
   const { data: stats, isLoading: statsLoading } = useCityStats(cityName);
@@ -53,6 +58,8 @@ export default function CityFeedPage() {
     data: gourmetsRanking,
     isLoading: gourmetsLoading,
   } = useCityGourmetRankings(cityName, gourmetScope, isAuthenticated);
+
+  const { data: cityLists, isLoading: listsLoading } = useCityLists(cityName, listsScope);
 
   const feedEntries = feedData?.pages.flatMap((page) => page.data) ?? [];
 
@@ -105,7 +112,7 @@ export default function CityFeedPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col gap-6">
+    <div className="max-w-2xl mx-auto w-full flex flex-col gap-6 animate-fade-in">
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="cursor-pointer">
@@ -165,15 +172,16 @@ export default function CityFeedPage() {
       </div>
 
       {/* Tabs Container */}
-      <div className="flex flex-col">
-        {/* Main Tab Controller - Grid of 3 equal columns */}
-        <div className="grid grid-cols-3 bg-stone-100 p-1 rounded-2xl border border-stone-200/50 shadow-inner select-none">
+      <div className="flex flex-col gap-2">
+        {/* Main Tab Controller - Grid of 4 equal columns */}
+        <div className="grid grid-cols-4 bg-stone-100 p-1 rounded-2xl border border-stone-200/50 shadow-inner select-none">
           <MainTabButton value="feed" label="Feed" />
           <MainTabButton value="restaurants" label="Top Restaurants" />
           <MainTabButton value="gourmets" label="Top Gourmets" />
+          <MainTabButton value="lists" label="Lists" />
         </div>
 
-        {/* Sub Tabs Controller - Grid of 2 equal columns */}
+        {/* Sub Tabs Controller */}
         <div className="grid grid-cols-2 gap-2 bg-stone-100/50 p-1 rounded-xl border border-warm-200/40 select-none">
           {activeTab === "feed" && (
             <>
@@ -228,6 +236,31 @@ export default function CityFeedPage() {
                   className="w-full py-2 text-xs font-bold rounded-lg bg-stone-100/40 text-stone-300 border border-warm-200/30 cursor-not-allowed text-center"
                 >
                   Friends (Auth required)
+                </button>
+              )}
+            </>
+          )}
+          {activeTab === "lists" && (
+            <>
+              <SubTabButton
+                value="public"
+                label="Public Lists"
+                activeValue={listsScope}
+                onChange={setListsScope}
+              />
+              {isAuthenticated ? (
+                <SubTabButton
+                  value="following"
+                  label="My Followings"
+                  activeValue={listsScope}
+                  onChange={setListsScope}
+                />
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-2 text-xs font-bold rounded-lg bg-stone-100/40 text-stone-300 border border-warm-200/30 cursor-not-allowed text-center"
+                >
+                  My Followings (Auth required)
                 </button>
               )}
             </>
@@ -345,6 +378,76 @@ export default function CityFeedPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "lists" && (
+          <>
+            {listsLoading ? (
+              <div className="flex justify-center p-12">
+                <Spinner size="lg" />
+              </div>
+            ) : !cityLists || cityLists.length === 0 ? (
+              <div className="text-center py-12 bg-white border border-warm-200 rounded-2xl shadow-sm">
+                <p className="text-stone-500 font-medium">
+                  {listsScope === "following"
+                    ? `No lists curated by followed users in ${cityName} yet.`
+                    : `No lists curated in ${cityName} yet.`}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+                {cityLists.map((list) => {
+                  const listCities = list.metadata?.cities || [];
+                  return (
+                    <Link
+                      key={list.id}
+                      href={`/lists/${list.id}`}
+                      className="group flex flex-col bg-white border border-warm-200 rounded-2xl p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out"
+                    >
+                      {/* Cover Art */}
+                      <div className="mb-4 w-full">
+                        <ListCover
+                          title={list.title}
+                          creator={list.user}
+                          cities={listCities}
+                          aspectSquare={true}
+                          disableCityLinks={true}
+                          showTitle={false}
+                          showCreator={false}
+                          coverUrl={list.cover_image_url}
+                        />
+                      </div>
+                      
+                      {/* Info */}
+                      <div className="flex flex-col flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-bold text-stone-900 group-hover:text-primary-500 transition-colors text-sm line-clamp-1 flex-1">
+                            {list.title}
+                          </h3>
+                          <span className="capitalize px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] border border-stone-200/50 flex-shrink-0">
+                            {list.visibility}
+                          </span>
+                        </div>
+                        
+                        <p className="text-stone-500 text-xs mt-1 truncate">
+                          By @{list.user.username}
+                        </p>
+
+                        <div className="mt-2 pt-2 border-t border-warm-100 flex items-center justify-between text-[11px] font-bold text-stone-400">
+                          <span>
+                            {list.item_count} {list.item_count === 1 ? "restaurant" : "restaurants"}
+                          </span>
+                          <span className="flex items-center gap-0.5 text-red-500">
+                            ❤️ {list.likes_count}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </>

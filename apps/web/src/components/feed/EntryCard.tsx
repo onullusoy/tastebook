@@ -195,9 +195,17 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setShowListsSubmenu(true);
+                        if (entry.google_place_id) {
+                          setShowListsSubmenu(true);
+                        } else {
+                          addToast("Only restaurants with Google Places references can be added to lists.", "info");
+                        }
                       }}
-                      className="w-full px-4 py-2 text-sm text-stone-700 hover:bg-primary-50 hover:text-primary-600 transition-colors text-left flex items-center gap-2 cursor-pointer font-semibold"
+                      className={`w-full px-4 py-2 text-sm text-left flex items-center gap-2 cursor-pointer font-semibold transition-colors ${
+                        entry.google_place_id
+                          ? "text-stone-700 hover:bg-primary-50 hover:text-primary-600"
+                          : "text-stone-400 hover:bg-stone-50 cursor-not-allowed"
+                      }`}
                     >
                       <span>🔖</span> Add to List
                     </button>
@@ -310,7 +318,10 @@ export const EntryCard = ({ entry, onDelete, onRemove, isOwner, onImageClick, un
                               try {
                                 await addToListMutation.mutateAsync({
                                   listId: list.id,
-                                  entryId: entry.id,
+                                  restaurantId: entry.google_place_id!,
+                                  name: entry.restaurant_name,
+                                  city: entry.city,
+                                  country: entry.country,
                                 });
                                 addToast(`Added to list "${list.title}"!`, "success");
                                 setMenuOpen(false);

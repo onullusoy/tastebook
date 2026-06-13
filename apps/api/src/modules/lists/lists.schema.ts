@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createListSchema, updateListSchema, reorderItemsSchema, addCollaboratorSchema } from "@tastebook/shared/schemas/lists";
+import { createListSchema, updateListSchema, reorderItemsSchema, addCollaboratorSchema, addListItemSchema } from "@tastebook/shared/schemas/lists";
 
 export const createListRouteSchema = {
   body: createListSchema,
@@ -13,9 +13,7 @@ export const reorderItemsRouteSchema = {
   body: reorderItemsSchema,
 };
 
-export const addListItemSchema = z.object({
-  entry_id: z.string().uuid(),
-});
+export { addListItemSchema };
 
 export const addCollaboratorRouteSchema = {
   body: addCollaboratorSchema,

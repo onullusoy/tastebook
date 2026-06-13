@@ -59,12 +59,14 @@ export async function truncateTables(db: any) {
   const tables = [
     "list_items",
     "list_collaborators",
+    "list_likes",
     "food_items",
     "lists",
     "entry_media",
     "follows",
     "refresh_tokens",
     "taste_entries",
+    "restaurants",
     "users",
   ];
   await db.execute(sql.raw(`TRUNCATE TABLE ${tables.join(", ")} CASCADE`));

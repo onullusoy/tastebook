@@ -1,5 +1,5 @@
-import { createDb, tasteEntries, users, follows, entryMedia, foodItems, entryLikes } from "@tastebook/db";
-import { eq, and, or, inArray, desc, lt } from "drizzle-orm";
+import { createDb, tasteEntries, users, follows, entryMedia, foodItems, entryLikes, listLikes, listItems } from "@tastebook/db";
+import { eq, and, or, inArray, desc, lt, sql } from "drizzle-orm";
 import type { EntryResponse, PaginatedResponse } from "@tastebook/shared/api-types";
 import type { SocialService } from "../social/social.service";
 import type { MediaService } from "../media/media.service";
@@ -69,6 +69,45 @@ export class FeedService {
       likes.forEach(l => likedEntryIds.add(l.entryId));
     }
 
+    const listIds = entries.map(e => e.listId).filter(Boolean) as string[];
+    
+    // Batch fetch list likes counts
+    const listLikesCounts = new Map<string, number>();
+    if (listIds.length > 0) {
+      const counts = await this.db
+        .select({ listId: listLikes.listId, count: sql<number>`count(*)::int` })
+        .from(listLikes)
+        .where(inArray(listLikes.listId, listIds))
+        .groupBy(listLikes.listId);
+      counts.forEach(c => listLikesCounts.set(c.listId, c.count));
+    }
+
+    // Batch fetch list likes for the viewer
+    const likedListIds = new Set<string>();
+    if (viewerId && listIds.length > 0) {
+      const likes = await this.db
+        .select({ listId: listLikes.listId })
+        .from(listLikes)
+        .where(
+          and(
+            eq(listLikes.userId, viewerId),
+            inArray(listLikes.listId, listIds)
+          )
+        );
+      likes.forEach(l => likedListIds.add(l.listId));
+    }
+
+    // Batch fetch list items counts
+    const listItemsCounts = new Map<string, number>();
+    if (listIds.length > 0) {
+      const counts = await this.db
+        .select({ listId: listItems.listId, count: sql<number>`count(*)::int` })
+        .from(listItems)
+        .where(inArray(listItems.listId, listIds))
+        .groupBy(listItems.listId);
+      counts.forEach(c => listItemsCounts.set(c.listId, c.count));
+    }
+
     return entries.map(entry => {
       const userRecord = userMap.get(entry.userId);
       const mappedUser = {
@@ -117,9 +156,13 @@ export class FeedService {
         visibility: entry.visibility as "public" | "friends" | "private",
         media: mediaList,
         list_id: entry.listId,
-        likes_count: entry.likesCount,
+        likes_count: entry.listId ? (listLikesCounts.get(entry.listId) ?? 0) : entry.likesCount,
         comments_count: entry.commentsCount,
-        is_liked: likedEntryIds.has(entry.id),
+        is_liked: entry.listId ? likedListIds.has(entry.listId) : likedEntryIds.has(entry.id),
+        metadata: entry.metadata ? {
+          ...entry.metadata,
+          item_count: entry.listId ? (listItemsCounts.get(entry.listId) ?? 0) : 0,
+        } : null,
         created_at: entry.createdAt.toISOString(),
       };
     });

@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
+import formbody from "@fastify/formbody";
 import configPlugin from "./shared/plugins/config";
 import dbPlugin from "./shared/plugins/db";
 import redisPlugin from "./shared/plugins/redis";
@@ -28,7 +29,7 @@ export async function buildApp() {
     },
     rewriteUrl: process.env.NODE_ENV === "test" ? (req) => {
       const url = req.url;
-      if (url && !url.startsWith("/api")) {
+      if (url && !url.startsWith("/api") && !url.startsWith("/admin")) {
         return `/api${url}`;
       }
       return url || "/";
@@ -85,8 +86,15 @@ export async function buildApp() {
     },
   });
 
+  await app.register(formbody);
+
   if (!app.hasRequestDecorator("cookies")) {
-    await app.register(cookie);
+    await app.register(cookie, {
+      secret: [
+        app.config.JWT_SECRET,
+        app.config.ADMIN_COOKIE_PASSWORD,
+      ].filter(Boolean) as string[],
+    });
   }
 
   await app.register(jwt, {

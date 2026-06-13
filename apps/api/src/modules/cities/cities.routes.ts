@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { CitiesService } from "./cities.service";
+import { ListsService } from "../lists/lists.service";
+import { MediaService } from "../media/media.service";
 import { z } from "zod";
 
 const paramsSchema = z.object({
@@ -34,8 +36,14 @@ async function optionalAuth(request: FastifyRequest) {
   }
 }
 
+const listsQuerySchema = z.object({
+  filter: z.enum(["public", "following"]).default("public"),
+});
+
 export default async function citiesRoutes(fastify: FastifyInstance) {
   const citiesService = new CitiesService(fastify.db);
+  const mediaService = new MediaService(fastify.db, fastify.s3, fastify.config);
+  const listsService = new ListsService(fastify.db, mediaService);
 
   fastify.get("/cities/:cityName/stats", { preHandler: [optionalAuth] }, async (request, reply) => {
     const { cityName } = paramsSchema.parse(request.params);
@@ -57,6 +65,14 @@ export default async function citiesRoutes(fastify: FastifyInstance) {
     const decodedCityName = decodeURIComponent(cityName);
     const query = gourmetQuerySchema.parse(request.query);
     const data = await citiesService.getTopGourmets(decodedCityName, request.userId, query.scope);
+    return reply.status(200).send({ data });
+  });
+
+  fastify.get("/cities/:cityName/lists", { preHandler: [optionalAuth] }, async (request, reply) => {
+    const { cityName } = paramsSchema.parse(request.params);
+    const decodedCityName = decodeURIComponent(cityName);
+    const query = listsQuerySchema.parse(request.query);
+    const data = await listsService.listByCity(decodedCityName, request.userId, query.filter);
     return reply.status(200).send({ data });
   });
 }
