@@ -7,12 +7,29 @@ export default async function mediaRoutes(fastify: FastifyInstance) {
   const mediaService = new MediaService(fastify.db, fastify.s3, fastify.config);
 
   fastify.post("/upload", { onRequest: [authGuard] }, async (request, reply) => {
-    const part = await request.file();
-    if (!part) {
-      throw new ValidationError("No file uploaded");
+    let buffer: Buffer;
+    let mimetype: string;
+
+    // Support both attachFieldsToBody: true (which places the parsed multipart file object on request.body)
+    // and standard stream-based request.file() parsing.
+    if (request.body && typeof request.body === "object" && "file" in request.body) {
+      const fileField = (request.body as any).file;
+      if (fileField && typeof fileField === "object" && typeof fileField.toBuffer === "function") {
+        mimetype = fileField.mimetype;
+        buffer = await fileField.toBuffer();
+      } else {
+        throw new ValidationError("No file uploaded");
+      }
+    } else {
+      const part = await request.file();
+      if (!part) {
+        throw new ValidationError("No file uploaded");
+      }
+      buffer = await part.toBuffer();
+      mimetype = part.mimetype;
     }
-    const buffer = await part.toBuffer();
-    const media = await mediaService.uploadImage(request.userId, buffer, part.mimetype);
+
+    const media = await mediaService.uploadImage(request.userId, buffer, mimetype);
     return reply.status(201).send({ data: media });
   });
 
