@@ -171,7 +171,10 @@ export class MediaService {
   }
 
   getMediaUrl(objectKey: string): string {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${this.config.API_PORT}/api`;
+    let apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${this.config.API_PORT}/api`;
+    if (apiBaseUrl && !apiBaseUrl.endsWith("/api") && !apiBaseUrl.endsWith("/api/")) {
+      apiBaseUrl = `${apiBaseUrl.replace(/\/$/, "")}/api`;
+    }
     return `${apiBaseUrl.replace(/\/$/, "")}/media/file/${objectKey}`;
   }
 
