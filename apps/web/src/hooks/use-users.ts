@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tansta
 import { api } from "../lib/api-client";
 import { UserResponse, EntryResponse, PaginatedResponse, ApiResponse } from "@tastebook/shared/api-types";
 import { useAuthStore } from "../stores/auth-store";
+import { compressImage } from "../lib/image-compression";
 
 export function useUser(id: string) {
   return useQuery<UserResponse>({
@@ -106,8 +107,9 @@ export function useUploadAvatar() {
 
   return useMutation({
     mutationFn: async (file: File) => {
+      const compressedFile = await compressImage(file, 400, 0.85); // Avatars can be smaller, maxDimension 400
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
 
       const res = await api.fetch<ApiResponse<{ avatar_url: string }>>("/users/me/avatar", {
         method: "POST",

@@ -38,7 +38,7 @@ export function errorHandler(
     return reply.status(422).send({
       error: {
         code: "VALIDATION_ERROR",
-        message: "File size exceeds 10MB limit.",
+        message: "File size exceeds 40MB limit.",
       },
     });
   }

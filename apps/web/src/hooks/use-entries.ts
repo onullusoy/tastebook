@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api-client";
 import { ApiResponse, EntryResponse, MediaResponse } from "@tastebook/shared/api-types";
 import { CreateEntryRequest, UpdateEntryRequest } from "@tastebook/shared/schemas/entries";
+import { compressImage } from "../lib/image-compression";
 
 export function useEntry(id: string) {
   return useQuery<EntryResponse>({
@@ -62,8 +63,9 @@ export function useUpdateEntry(id: string) {
 export function useUploadMedia() {
   return useMutation({
     mutationFn: async (file: File) => {
+      const compressedFile = await compressImage(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
 
       const res = await api.fetch<ApiResponse<MediaResponse>>("/media/upload", {
         method: "POST",

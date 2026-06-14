@@ -85,9 +85,9 @@ describe("Media Upload Integration Tests", () => {
     expect(res.body.data.mime_type).toBe("image/webp");
   });
 
-  it("POST /media/upload — too large (>10MB) → 422", async () => {
+  it("POST /media/upload — too large (>40MB) → 422", async () => {
     const alice = await createTestUserWithAuth(app);
-    const largeBuffer = Buffer.alloc(10 * 1024 * 1024 + 10);
+    const largeBuffer = Buffer.alloc(40 * 1024 * 1024 + 10);
     largeBuffer[0] = 0xFF;
     largeBuffer[1] = 0xD8;
     largeBuffer[2] = 0xFF;

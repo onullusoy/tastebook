@@ -94,7 +94,7 @@ export async function buildApp() {
   if (!app.hasRequestDecorator("isMultipart")) {
     await app.register(multipart, {
       limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 40 * 1024 * 1024,
       },
     });
   }

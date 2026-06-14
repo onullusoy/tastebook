@@ -1,19 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Avatar } from "../ui/Avatar";
 import { api } from "../../lib/api-client";
+import { resolveMediaUrl } from "../../lib/media-utils";
 
 const CITY_COVERS: Record<string, string> = {
-  istanbul: "https://picsum.photos/seed/istanbul/600/600",
-  izmir: "https://picsum.photos/seed/izmir/600/600",
-  ankara: "https://picsum.photos/seed/ankara/600/600",
-  paris: "https://picsum.photos/seed/paris/600/600",
-  london: "https://picsum.photos/seed/london/600/600",
-  rome: "https://picsum.photos/seed/rome/600/600",
-  tokyo: "https://picsum.photos/seed/tokyo/600/600",
-  "new york": "https://picsum.photos/seed/newyork/600/600",
   default: "/placeholder-food.png",
 };
 
@@ -41,6 +34,52 @@ export function ListCover({
   showCreator = true,
   coverUrl,
 }: ListCoverProps) {
+  const [wikiCoverUrl, setWikiCoverUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (coverUrl || cities.length === 0) return;
+
+    const firstCity = cities[0];
+    const cacheKey = `wiki_city_cover_${firstCity.toLowerCase()}`;
+    const cached = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
+    if (cached) {
+      setWikiCoverUrl(cached);
+      return;
+    }
+
+    let isMounted = true;
+    const formattedCity = firstCity.charAt(0).toUpperCase() + firstCity.slice(1);
+
+    const fetchWikiImage = async () => {
+      try {
+        // 1. Try English Wikipedia summary endpoint
+        let res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(formattedCity)}`);
+        if (!res.ok) {
+          // 2. Try Turkish Wikipedia summary endpoint if English fails
+          res = await fetch(`https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(formattedCity)}`);
+        }
+        if (!res.ok) throw new Error("Wikipedia summary page not found");
+
+        const data = await res.json();
+        const imgUrl = data.originalimage?.source || data.thumbnail?.source;
+        if (imgUrl && isMounted) {
+          setWikiCoverUrl(imgUrl);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(cacheKey, imgUrl);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch Wikipedia cover for city:", firstCity, err);
+      }
+    };
+
+    fetchWikiImage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [coverUrl, cities]);
+
   const englishLower = (str: string) => {
     return str
       .toLowerCase()
@@ -56,25 +95,21 @@ export function ListCover({
       .trim();
   };
 
-  // Find first city cover matching in CITY_COVERS
+  // Find first city cover matching
   const findCoverUrl = () => {
+    if (wikiCoverUrl) {
+      return wikiCoverUrl;
+    }
+
     if (cities.length === 0) return CITY_COVERS.default;
     
-    // Check if the first city matches any of the hardcoded presets
     const firstCity = cities[0];
-    const normalized = englishLower(firstCity);
-    const matchedKey = Object.keys(CITY_COVERS).find(
-      (key) => normalized.includes(key) || key.includes(normalized)
-    );
-    if (matchedKey) {
-      return CITY_COVERS[matchedKey];
-    }
     
     // Otherwise, fetch from Google Places API city-photo endpoint on backend
     const token = typeof window !== "undefined" ? api.getAccessToken() : null;
     return `${api.baseUrl}/places/city-photo?city=${encodeURIComponent(firstCity)}${token ? `&token=${token}` : ""}`;
   };
-  const resolvedCoverUrl = coverUrl || findCoverUrl();
+  const resolvedCoverUrl = resolveMediaUrl(coverUrl || findCoverUrl());
 
   return (
     <div
