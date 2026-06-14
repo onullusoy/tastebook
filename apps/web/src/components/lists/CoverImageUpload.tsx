@@ -22,9 +22,9 @@ export function CoverImageUpload({ value, onChange }: CoverImageUploadProps) {
     if (files.length === 0) return;
 
     const file = files[0];
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      addToast("Image size must be less than 5MB.", "error");
+    // Check file size (max 40MB)
+    if (file.size > 40 * 1024 * 1024) {
+      addToast("Image size must be less than 40MB.", "error");
       return;
     }
 
@@ -114,7 +114,7 @@ export function CoverImageUpload({ value, onChange }: CoverImageUploadProps) {
                   <ImageIcon size={20} />
                 </div>
                 <span className="text-xs font-bold text-stone-700">Click to upload cover image</span>
-                <span className="text-[10px] text-stone-400 mt-1 font-semibold">PNG, JPG, or WEBP up to 5MB</span>
+                <span className="text-[10px] text-stone-400 mt-1 font-semibold">PNG, JPG, or WEBP up to 40MB</span>
               </div>
             )}
           </div>

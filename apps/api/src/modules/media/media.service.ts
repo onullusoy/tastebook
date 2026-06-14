@@ -15,8 +15,8 @@ export class MediaService {
   ) {}
 
   async uploadImage(userId: string, fileBuffer: Buffer, mimeType: string): Promise<MediaResponse> {
-    if (fileBuffer.length > 10 * 1024 * 1024) {
-      throw new ValidationError("File size exceeds 10MB limit.");
+    if (fileBuffer.length > 40 * 1024 * 1024) {
+      throw new ValidationError("File size exceeds 40MB limit.");
     }
 
     const header = fileBuffer.subarray(0, 4).toString("hex").toUpperCase();

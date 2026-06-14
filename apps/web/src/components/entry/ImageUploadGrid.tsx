@@ -34,6 +34,11 @@ export const ImageUploadGrid = ({ value, onChange }: ImageUploadGridProps) => {
     }
 
     for (const file of files) {
+      if (file.size > 40 * 1024 * 1024) {
+        addToast(`Image "${file.name}" must be less than 40MB.`, "error");
+        continue;
+      }
+
       const tempId = Math.random().toString();
       const localUrl = URL.createObjectURL(file);
       const newItem: ImageUploadItem = { url: localUrl, isUploading: true };
