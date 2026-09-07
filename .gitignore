@@ -6,6 +6,11 @@ dist/
 .next/
 *.tsbuildinfo
 .turbo/
-.sisyphus/
+
+# Local agent context and legacy planner artifacts (never publish)
+/AGENTS.md
+/.agents/
+/.sisyphus/
+
+# Local architecture handbook
 ARCHITECTURE.md
-.agents/

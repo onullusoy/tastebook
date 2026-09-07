@@ -37,6 +37,35 @@ tastebook/
 
 ---
 
+## 💻 Fully local development
+
+The application can run entirely on the current computer, without the Ubuntu Server, Vercel, or
+an ngrok tunnel. Docker is used only for the local PostgreSQL, Redis, and MinIO containers; the API
+and web application run as local Node.js processes.
+
+```bash
+pnpm install
+pnpm dev --only-local
+```
+
+`pnpm dev:local` is an equivalent shortcut. The launcher starts the three Docker services, waits
+until they are ready, runs the database migrations, and then starts the API and web applications.
+Open <http://localhost:3000>; the local API is available at <http://127.0.0.1:3001/api> and the
+MinIO console at <http://127.0.0.1:19001>.
+
+Local data is kept in Docker volumes between runs. To stop and remove the local containers without
+deleting their volumes, run:
+
+```bash
+pnpm local:down
+```
+
+The launcher supplies development-only defaults for required secrets when they are absent. Values
+already defined in the root `.env` (such as `GOOGLE_PLACES_API_KEY` or admin credentials) remain
+available, but all database, Redis, MinIO, API, and web addresses are forcibly replaced with local
+addresses for this mode. The ordinary `pnpm dev` command keeps its previous behavior and uses the
+configured environment as-is.
+
 ## 🛠️ Key Technical Highlights
 
 ### 1. Monorepo Architecture & Build Optimization

@@ -3,7 +3,9 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:local": "node scripts/dev.mjs --only-local",
+    "local:down": "docker compose -f docker-compose.yml down",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
